@@ -178,3 +178,20 @@ devtools::test()
 
 The suite uses `testthat` and also runs during `R CMD check`.
 See AUTHORS.md and LICENSE for credits and `citation("radar.raman")` for the method.
+
+### Provenance
+
+This package is a port of the Python
+[radar-raman](https://github.com/bogdanoancea/RADAR) package
+([PyPI](https://pypi.org/project/radar-raman/),
+[doi:10.5281/zenodo.23760379](https://doi.org/10.5281/zenodo.23760379)), which
+in turn builds on Joel Sjoberg's [original
+implementation](https://github.com/JoelSjoberg/Comprehensive-Raman-Spectral-Analysis-Using-Deep-Learning).
+The network architectures, the synthetic data generator and the pretrained
+weights all originate there.
+
+The expected outputs in `inst/extdata/reference_outputs.rds` were produced by
+that original code running under legacy Keras 2, so the regression test in
+`tests/testthat/test-reference.R` checks this port against the original
+implementation rather than against itself. See `inst/extdata/README.md` for the
+full chain.

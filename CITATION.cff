@@ -1,12 +1,14 @@
 cff-version: 1.2.0
-message: "If you use radar.raman, please cite the paper below."
+message: "If you use radar.raman, please cite the article below."
 type: software
 title: "radar.raman: Raman Spectral Analysis Using Deep Learning for Artifact Removal"
-abstract: "An R implementation of the RADAR method. Decomposes Raman spectra into
-  baseline, cosmic rays, noise and Raman peaks using bundled pretrained standard and
-  ensemble convolutional networks. Neural network inference, automatic
-  differentiation, training, synthetic data generation, evaluation and spectral file
-  conversion are implemented entirely in R."
+abstract: >-
+  R package that decomposes Raman spectra into baseline, cosmic rays, noise and
+  Raman peaks using bundled pretrained standard and ensemble convolutional
+  networks. Neural network inference, automatic differentiation, training,
+  synthetic data generation, evaluation and spectral file conversion are
+  implemented entirely in R, with readers and writers for the common
+  spectroscopy formats. A port of the Python radar-raman package.
 version: 0.1.0
 license: BSD-3-Clause
 repository-code: "https://github.com/bogdanoancea/R-RADAR"
@@ -22,14 +24,18 @@ keywords:
 authors:
   - family-names: Sjöberg
     given-names: Joel
+    orcid: "https://orcid.org/0000-0002-8572-0431"
   - family-names: Oancea
     given-names: Bogdan
+    affiliation: "University of Bucharest, Bucharest, Romania; National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
+    orcid: "https://orcid.org/0000-0001-6987-5137"
 preferred-citation:
   type: article
   title: "RADAR: Raman Spectral Analysis Using Deep Learning for Artifact Removal"
   authors:
     - family-names: Sjöberg
       given-names: Joel
+      orcid: "https://orcid.org/0000-0002-8572-0431"
     - family-names: Siminea
       given-names: Nicoleta
     - family-names: Păun
@@ -44,3 +50,29 @@ preferred-citation:
   year: 2025
   start: 2500736
   doi: "10.1002/adom.202500736"
+references:
+  - type: software
+    title: "RADAR: Raman spectral Analysis using Deep learning for Artifact Removal (Python package)"
+    authors:
+      - family-names: Sjöberg
+        given-names: Joel
+        orcid: "https://orcid.org/0000-0002-8572-0431"
+      - family-names: Oancea
+        given-names: Bogdan
+        orcid: "https://orcid.org/0000-0001-6987-5137"
+    version: 0.1.0
+    doi: "10.5281/zenodo.23760379"
+    repository-code: "https://github.com/bogdanoancea/RADAR"
+    url: "https://pypi.org/project/radar-raman/"
+    notes: "This R package is a port of the Python package."
+  - type: software
+    title: "Comprehensive Raman Spectral Analysis Using Deep Learning (original implementation)"
+    authors:
+      - family-names: Sjöberg
+        given-names: Joel
+        orcid: "https://orcid.org/0000-0002-8572-0431"
+    repository-code: "https://github.com/JoelSjoberg/Comprehensive-Raman-Spectral-Analysis-Using-Deep-Learning"
+    notes: >-
+      Source of the network architectures, the synthetic data generator and the
+      pretrained weights, and of the reference outputs in
+      inst/extdata/reference_outputs.rds.
