@@ -11,6 +11,16 @@ packages support particular file formats.
 
 ## Installation
 
+From R, directly from GitHub:
+
+```r
+# install.packages("remotes")
+remotes::install_github("bogdanoancea/R-RADAR")
+
+# With the vignettes built; needs knitr, rmarkdown and Pandoc.
+remotes::install_github("bogdanoancea/R-RADAR", build_vignettes = TRUE)
+```
+
 From a local clone, in the terminal:
 
 ```sh
