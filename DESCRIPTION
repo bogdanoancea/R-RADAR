@@ -1,0 +1,27 @@
+Package: RADAR
+Type: Package
+Title: Raman Spectral Analysis Using Deep Learning for Artifact Removal
+Version: 0.1.0
+Authors@R: c(
+    person("Joel", "Sjoberg", email = "joelsjoberg3@gmail.com", role = "aut",
+           comment = "Original algorithms, neural networks and pretrained weights"),
+    person("Bogdan", "Oancea", email = "bogdan.oancea@gmail.com",
+           role = c("aut", "cre")))
+Description: Decomposes Raman spectra into baseline, cosmic rays, noise and
+    Raman peaks using the bundled pretrained standard and ensemble convolutional
+    networks. Implements neural network inference, automatic differentiation,
+    training, synthetic data generation, evaluation and spectral file conversion
+    entirely in R. Includes
+    readers and writers for common spectroscopy and scientific data formats.
+License: BSD_3_clause + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports: graphics, stats, utils, tools
+Suggests: jsonlite, hdf5r, DBI, RSQLite, readxl, openxlsx, arrow, xml2,
+    knitr, rmarkdown, testthat (>= 3.0.0)
+VignetteBuilder: knitr
+NeedsCompilation: no
+LazyData: false
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Config/testthat/edition: 3

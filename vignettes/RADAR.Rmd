@@ -1,0 +1,1631 @@
+---
+title: "RADAR: Raman spectral analysis in R"
+author: "Bogdan Oancea"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{RADAR: Raman spectral analysis in R}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse=TRUE, comment="#>", fig.width=7, fig.height=7,
+                     message=FALSE, warning=TRUE, error=FALSE)
+library(RADAR)
+```
+
+# Overview and installation
+
+RADAR (**R**aman spectral **A**nalysis using **D**eep learning for **A**rtifact
+**R**emoval) separates spectra into baseline, cosmic rays, noise and Raman
+peaks. This standalone R package provides inference, automatic differentiation,
+Adam training, synthetic spectra, evaluation, spectral file handling and maps.
+Both pretrained architectures and their weights are included as native R
+objects. Installation and model loading require no downloads or conversion.
+
+R 4.1.0 or later is required. Core computation uses base and recommended R
+packages. Optional packages support particular file formats, as listed below.
+Install a source archive using:
+
+```{r installation, eval=FALSE}
+install.packages("RADAR_0.1.0.tar.gz", repos=NULL, type="source")
+library(RADAR)
+vignette("RADAR", package="RADAR")
+```
+
+To build documentation from source, install knitr, rmarkdown and Pandoc.
+Run `R CMD build RADAR`, then `R CMD check --no-manual RADAR_0.1.0.tar.gz`.
+The distributed archive includes a rendered guide.
+
+# Quick start
+
+```{r quick-start}
+sample_data <- generate(2, length=128, seed=7)
+parts <- RADAR::decompose(sample_data$X, model="standard")
+names(as.list(parts))
+plot(parts, index=1)
+```
+
+Rows of a matrix are spectra and columns are spectral points. A vector is one
+spectrum. The last dimension of a map array is spectral. R indices start at one.
+Use `RADAR::decompose()` and `RADAR::write()` to avoid conflicts with similarly
+named functions in other packages. `$peaks` holds corrected Raman bands.
+Input intensities are normalized per spectrum; output uses input intensity
+units by default. Inspect decompositions before downstream interpretation.
+
+# Reading spectra and choosing a file format
+
+`RADAR::read()` chooses a reader from the extension. `read_spectra()` is an
+alias. Set `format` when an extension is missing, ambiguous or misleading.
+`RADAR::write()` similarly chooses an output format; it accepts spectral
+records, plain numeric arrays, decompositions and synthetic datasets. Explicit
+namespacing distinguishes these functions from base R's `read` and `write`.
+
+```{r files-working-data}
+files_dir <- tempfile("radar-vignette-files-")
+dir.create(files_dir)
+files_axis <- seq(400, 1800, length.out = 64)
+files_peak <- exp(-0.5 * ((files_axis - 1000) / 65)^2)
+files_X <- rbind(
+  40 + 0.015 * files_axis + 180 * files_peak,
+  55 + 0.010 * files_axis + 130 * files_peak,
+  35 + 0.020 * files_axis + 210 * files_peak,
+  60 + 0.008 * files_axis + 160 * files_peak
+)
+files_positions <- as.matrix(expand.grid(y = 0:1, x = 0:1)[, c("x", "y")])
+files_data <- spectral_data(
+  files_X, wavenumbers = files_axis,
+  names = c("top_left", "bottom_left", "top_right", "bottom_right"),
+  positions = files_positions, position_names = c("x", "y"),
+  map_shape = c(2, 2), x_units = "cm-1", y_units = "counts",
+  meta = list(instrument = "vignette example")
+)
+files_csv <- file.path(files_dir, "spectra.csv")
+RADAR::write(files_data, files_csv)
+files_back <- RADAR::read(files_csv)
+print(files_back)
+stopifnot(isTRUE(all.equal(files_back$intensities, files_X,
+                          check.attributes = FALSE)))
+```
+
+The example uses temporary, deliberately short spectra to keep the vignette
+quick to run. It demonstrates the interface rather than a measured-spectra
+accuracy benchmark.
+
+## Format capabilities and optional packages
+
+The package's current registry is available programmatically:
+
+```{r files-format-registry}
+files_formats <- formats()
+files_formats[, c("format", "extensions", "read", "write", "requires")]
+```
+
+| Format | Extensions | Read / write | R requirements and scope |
+| --- | --- | --- | --- |
+| Delimited text | `.csv`, `.tsv`, `.tab`, `.txt`, `.dat`, `.asc`, `.prn`, `.xy` | Both | Base R; wide, row and long tables; comma, semicolon, tab, pipe or whitespace input; decimal commas and instrument text exports. |
+| RRUFF | `.rruff`; also RRUFF text saved as `.txt` | Read only for `.rruff` | Base R; `##` preambles/trailers and numeric spectral pairs. |
+| R spectral records | `.rds` | Both | Base R; preserves the native record and metadata. A spectral RDS file is distinct from a saved model RDS file. |
+| JSON | `.json` | Both | `jsonlite`; RADAR records, simple `x`/`y` arrays or lists of named spectrum objects. |
+| NumPy array | `.npy` | Both | Native R parser/writer; one rectangular array, without a spectral axis or other record metadata. |
+| NumPy archive | `.npz` | Both | Native R array parser plus `jsonlite` for RADAR metadata; archives use R's zip/unzip facilities and a system zip utility for writing. |
+| Thermo Galactic GRAMS SPC | `.spc` | Both | Native R; old `0x4D` and new `0x4B`/big-endian `0x4C` input, single and multiple spectra, common or per-spectrum axes, integer or IEEE float intensities. Writes new-format float data. |
+| JCAMP-DX | `.jdx`, `.dx`, `.jcamp`, `.jcm` | Both | Native R; 4.24/5.x, AFFN and ASDF SQZ/DIF/DUP compression, XYDATA, XYPOINTS/PEAK TABLE pairs, scale factors and compound LINK blocks. |
+| HDF5 / NetCDF-4 | `.h5`, `.hdf5`, `.he5`, `.nc`, `.nc4` | Both | `hdf5r`; `jsonlite` for RADAR metadata. Reads numeric HDF5 datasets, including spectral maps; this is not a classic NetCDF reader. |
+| SQLite | `.db`, `.sqlite`, `.sqlite3` | Both | `DBI`, `RSQLite`, and `jsonlite` for RADAR metadata. Table selection or SQL queries; RADAR output uses `spectra` and `radar_metadata` tables. |
+| Excel | `.xlsx`, `.xlsm`, `.xls` | Read; write `.xlsx` | `readxl` for input; `openxlsx` and `jsonlite` for output. Select sheets by name or one-based index, or use `sheet = "all"`. |
+| Parquet | `.parquet`, `.pq` | Both | `arrow`; `jsonlite` for RADAR metadata. Long tables by default. |
+| Feather / Arrow | `.feather`, `.arrow` | Both | `arrow`; `jsonlite` for RADAR metadata. |
+| MATLAB | `.mat` | Both | Native numeric level-5 parser, including compressed elements and numeric arrays inside structs/cells; `jsonlite` for RADAR metadata and output. HDF5-backed v7.3 also requires `hdf5r`. |
+| Renishaw WiRE | `.wdf` | Read only | Native R binary reader for spectra, axes and scan positions. |
+| Horiba LabSpec 6 | `.xml` | Read only | `xml2`; native handling of the LabSpec LSX spectral rows and calibrated axes. |
+| Princeton Instruments TriVista | `.tvf` | Read only | `xml2`; ordinary frames and axes in the first document. |
+
+Install only the optional R packages required by the formats you use. The
+network itself, plotting, RDS, delimited text, SPC and JCAMP-DX do not require
+these optional packages. A missing adapter dependency produces an R package
+installation message when that format is used.
+
+Several boundaries matter when exchanging files:
+
+* JCAMP-DX NTUPLES data are unsupported.
+* MATLAB level 4, complex spectra and export of unequal-length spectra are
+  unsupported. Use HDF5, NPZ, JSON or RDS for ragged spectra. HDF5-backed
+  MATLAB reading concerns numeric datasets; arbitrary MATLAB objects are not
+  reconstructed.
+* NumPy object/pickle arrays are unsupported. Integers are represented as R
+  doubles; exact values above `2^53` are not guaranteed.
+* SPC output uses 32-bit IEEE intensities, so round-trip differences from R
+  doubles are expected. NPY holds no axis, names, coordinates or metadata.
+* `.xls` is read only; export to `.xlsx`. Vendor formats are read only.
+  TriVista split glued child datasets are unsupported.
+* WITec `.wip` projects, Bruker OPUS binaries, Thermo OMNIC `.spa`, Andor `.sif`
+  and Princeton `.spe` camera files are not read directly. Export them from
+  the instrument software as SPC, JCAMP-DX, MATLAB or a text table.
+
+## Wide, row and long tables
+
+Text, Excel, Parquet, Feather and SQLite share the same table interpretation.
+`layout = "auto"` is convenient when the file follows a familiar layout.
+An explicit layout removes ambiguity in an unfamiliar export.
+
+| Layout | Spectra arrangement | Axis and coordinate convention |
+| --- | --- | --- |
+| `"wide"` or `"columns"` | One spectrum per column | A monotonic first numeric column is the spectral axis. A labelled axis column also disambiguates short spectra. |
+| `"rows"` | One spectrum per row | A monotonic first numeric row or numeric header supplies the axis. Leading empty cells in the axis row reserve columns for scan coordinates. |
+| `"long"` | One spectral point per row | Columns such as `spectrum`, `name`, `x`, `y`, `z`, `wavenumber`, `intensity`; component columns can hold a decomposition. |
+
+Column matching ignores case and spaces. Common spectral-axis names include
+`wavenumber`, `raman shift`, `shift`, `wavelength`, `#wave`, `x-axis`,
+`frequency`, `cm-1`, `pixel` and `channel`. Intensity aliases include
+`intensity`, `counts`, `#intensity`, `signal`, `y`, `absorbance` and `cps`.
+Scan coordinates can be labelled `x`, `y`, `z`, `#x`, `#y`, `time` or `depth`.
+A repeated axis, a spectrum identifier or coordinate columns separate long
+records into spectra. Different axes or lengths remain separate rather than
+being silently interpolated onto a shared grid.
+
+```{r files-table-layouts}
+files_wide <- file.path(files_dir, "wide.csv")
+RADAR::write(files_X, files_wide, wavenumbers = files_axis,
+             names = files_data$names, layout = "wide")
+files_wide_back <- RADAR::read(files_wide, layout = "wide")
+
+# A row-oriented export: the first row is the axis.
+files_rows <- file.path(files_dir, "rows.tsv")
+utils::write.table(rbind(files_axis, files_X), files_rows, sep = "\t",
+                   row.names = FALSE, col.names = FALSE, quote = FALSE)
+files_rows_back <- RADAR::read(files_rows, layout = "rows")
+
+# The map written above is a tidy table, including spectrum and coordinates.
+head(utils::read.csv(files_csv, check.names = FALSE), 3)
+stopifnot(isTRUE(all.equal(files_rows_back$intensities, files_X,
+                          check.attributes = FALSE)))
+```
+
+## Instrument text dialects and text options
+
+| Export | Reader behaviour |
+| --- | --- |
+| Renishaw WiRE text | Recognises `wl int`, `x wl int`, `y x wl int`, repeated spectral axes, and headers such as `#X #Y #Wave #Intensity`; retains scan positions. |
+| Horiba LabSpec text | Skips `#key=value` instrument headers; recognises an axis row beginning with empty coordinate cells, followed by `x y i1 i2 ...` rows. |
+| Ocean Insight / OceanView text | Reads the block between `>>>>>Begin Spectral Data<<<<<` and the end marker. |
+| RRUFF text | Skips `##` descriptive header and end lines. |
+| WITec, Wasatch Enlighten, B&W Tek and similar exports | Uses the generic two-column or table rules. Recognition of a text export does not imply support for that vendor's proprietary project files. |
+| European numeric exports | Detects semicolon/tab separation and decimal commas such as `1234,5`; `decimal = ","` can force the decimal mark. |
+
+Text options are `layout`, `delimiter`, `decimal`, `comments`, `skip_header`
+and `encoding`. `comments = "#"` is the default; recognised instrument column
+headers beginning with `#` are retained. `skip_header` discards a specified
+number of initial lines. `encoding` specifies a text encoding when the
+instrument's encoding needs to be supplied explicitly. Input field separators
+can be comma, semicolon, tab, pipe or whitespace. The writer's delimiter
+follows its format: comma for CSV and tab for TSV/text.
+
+```{r files-decimal-text}
+files_eu <- file.path(files_dir, "decimal-comma.csv")
+writeLines(c("Instrument export", "Raman shift;Intensity",
+             "100,5;1,25", "101,5;2,25", "102,5;3,25"), files_eu)
+files_eu_back <- RADAR::read(files_eu, delimiter = ";", decimal = ",",
+                            skip_header = 1)
+files_eu_back$wavenumbers
+files_eu_back$intensities
+
+# Use a tab-separated output when retaining a decimal comma.
+RADAR::write(files_data, file.path(files_dir, "decimal-comma.tsv"),
+             decimal = ",", layout = "long")
+```
+
+A record without a conventional extension can still be read explicitly:
+
+```{r files-format-override}
+files_unknown <- file.path(files_dir, "measurement.export")
+file.copy(files_wide, files_unknown)
+files_explicit <- RADAR::read(files_unknown, format = "csv", layout = "wide")
+```
+
+## Spectral records, selection and maps
+
+`spectral_data()` and its alias `SpectralData()` construct the same S3 record
+returned by `read()`. A numeric vector is one spectrum, a matrix has spectra
+in rows, and an array has the spectral dimension last. Native R map arrays
+use dimensions `c(ny, nx, length)` and R's column-major ordering. A list can
+hold spectra of unequal lengths.
+
+| Record field | Meaning |
+| --- | --- |
+| `$intensities`, `$spectra` | Aliases for the primary spectra: an `n` by `length` matrix, or a list for ragged data. |
+| `$arrays` | All named spectral arrays in the file; for example `intensity`, or `spectra` and the four components. |
+| `$wavenumbers` | Shared spectral axis, one axis per ragged spectrum, or `NULL`. |
+| `$names` | Spectrum names, or `NULL`. |
+| `$positions`, `$position_names` | One coordinate row per spectrum and labels for the coordinate columns. |
+| `$map_shape` | Regular grid dimensions, or `NULL`; read from the file or inferred from a complete coordinate grid. |
+| `$x_units`, `$y_units` | Spectral-axis and intensity units. |
+| `$meta`, `$metadata` | Metadata aliases, including available instrument/file information. |
+| `$source` | Source file path, when the record came from a file. |
+
+A spectral record is a list. Unlike a decomposition, its ordinary
+`length()` and `[` operate on list fields. Count or select its spectra through
+the intensity matrix, and build another record if the selected spectra need
+their axis and names attached:
+
+```{r files-record-selection}
+nrow(files_data$intensities)       # number of spectra
+ncol(files_data$intensities)       # points per spectrum
+is.list(files_data$intensities)    # ragged data use a list
+files_selected <- spectral_data(
+  files_data$intensities[c(1, 3), , drop = FALSE],
+  wavenumbers = files_data$wavenumbers,
+  names = files_data$names[c(1, 3)],
+  positions = files_data$positions[c(1, 3), , drop = FALSE],
+  position_names = files_data$position_names,
+  x_units = files_data$x_units
+)
+dim(as_map(files_data, "spectra"))
+```
+
+For ragged records use `length(data$intensities)` and
+`lengths(data$intensities)`. `as_map(data, "spectra")` reshapes a regular
+record; use `load_components()` to obtain a decomposition with map access to
+all its components. Explicit physical x/y coordinates determine grid
+placement where available. File matrix row order remains unchanged.
+Metadata records the C/F map order needed when importing files without
+physical coordinates from row-major files.
+
+## Container keys, Excel sheets and SQLite queries
+
+In a foreign HDF5, NPZ, MATLAB or JSON container, an explicit `key` selects the
+spectral array. Without it, the reader looks for familiar array and axis names
+and otherwise uses numeric-array heuristics, including array size and likely
+orientation. Supply `key` if that choice is ambiguous. A matching numeric
+axis is kept; multidimensional spectral maps are flattened into spectrum
+rows while retaining grid dimensions. The
+`Regions/<region>/Dataset` HDF5 layout is also recognised and its regions are
+combined into a matrix.
+
+```{r files-container-keys}
+if (requireNamespace("hdf5r", quietly = TRUE) &&
+    requireNamespace("jsonlite", quietly = TRUE)) {
+  files_h5 <- file.path(files_dir, "spectra.h5")
+  RADAR::write(files_data, files_h5)
+  files_h5_back <- RADAR::read(files_h5, key = "intensity")
+  stopifnot(identical(dim(files_h5_back$intensities), dim(files_X)))
+}
+```
+
+The following examples require your own files and are therefore shown without
+being run:
+
+```{r files-foreign-containers, eval=FALSE}
+measurement <- RADAR::read("measurement.h5", key = "experiment/spectra")
+measurement <- RADAR::read("measurement.npz", key = "spectra")
+measurement <- RADAR::read("measurement.mat", key = "measurement/spectra")
+measurement <- RADAR::read("measurement.json", key = "intensity")
+measurement <- RADAR::read("workbook.xlsx", sheet = 2)       # R indexing starts at 1
+measurement <- RADAR::read("workbook.xlsx", sheet = "run_A")
+all_sheets <- RADAR::read("workbook.xlsx", sheet = "all")
+names(all_sheets$arrays)
+```
+
+Excel defaults to the first data sheet, except that a RADAR decomposition
+workbook with all five recognised component sheets is read together.
+`sheet = "all"` reads all data sheets into named arrays; the
+`radar_metadata` sheet is treated as metadata. When the sheets contain
+unrelated measurements with different axes, read them separately.
+
+SQLite defaults to the `spectra` table when it exists. `table` chooses
+another table; `query` supplies a SQL query returning spectral table columns.
+Keep the axis/value columns and the spectrum identifier or coordinates when
+selecting a long-table subset.
+
+```{r files-sql-selection}
+if (all(vapply(c("DBI", "RSQLite", "jsonlite"), requireNamespace,
+               logical(1), quietly = TRUE))) {
+  files_db <- file.path(files_dir, "spectra.db")
+  RADAR::write(files_data, files_db)
+  files_one <- RADAR::read(
+    files_db,
+    query = "SELECT * FROM spectra WHERE spectrum = 2 ORDER BY wavenumber"
+  )
+  stopifnot(nrow(files_one$intensities) == 1)
+  files_one$names
+}
+```
+
+A SQL subset does not necessarily remain a complete map. Inspect its
+coordinates and dimensions before reshaping it as a grid.
+
+# Decomposing vectors, matrices, maps and files
+
+| Argument | Default | Meaning |
+| --- | --- | --- |
+| `spectra` | Required | In-memory spectra, a spectral record or a file path. |
+| `model` | `"ensemble"` | Bundled `"ensemble"`/`"standard"`, a saved model file or a loaded `radar_model`. |
+| `wavenumbers` | `NULL` | Axis attached to the result; inherited from a spectral record when omitted. The network does not use the axis values. |
+| `normalize` | `TRUE` | Min-max scale each spectrum before prediction. |
+| `units` | `"original"` | Return input intensity units; `"normalized"` keeps network-scale components. |
+| `batch_size` | `32` | Prediction grouping parameter; native R evaluates each spectrum separately to bound attention-layer memory. |
+| `output` | `NULL` | Also write the result to a file. |
+| `verbose` | `0` | Positive values print spectrum progress. |
+| `...` | None | Reader options when `spectra` is a path: `layout`, `key`, `sheet`, `query`, etc. |
+
+The executable example reuses one loaded model. The standard model's noise
+head is the residual, so its components reconstruct the input. The ensemble
+predicts noise independently and usually has a nonzero reconstruction
+residual. Inspect a few examples with either model before applying it to a
+large collection.
+
+```{r decompose-main}
+files_model <- load_model("standard")
+files_components <- RADAR::decompose(files_data, model = files_model)
+files_components
+max(abs(files_components$residual))
+```
+
+All the following calls use the same interface. They are shown without
+running extra predictions in this vignette:
+
+```{r decompose-input-forms, eval=FALSE}
+one <- RADAR::decompose(files_X[1, ], model = files_model,
+                        wavenumbers = files_axis)
+many <- RADAR::decompose(files_X, model = files_model,
+                         wavenumbers = files_axis)
+cube <- array(files_X, dim = c(2, 2, ncol(files_X)))
+map <- RADAR::decompose(cube, model = files_model, wavenumbers = files_axis)
+from_file <- RADAR::decompose(files_csv, model = files_model, layout = "long")
+written <- RADAR::decompose(files_csv, model = "ensemble",
+                            output = file.path(files_dir, "components.rds"))
+```
+
+A vector produces vector component fields. A matrix or map produces matrices
+with one row per spectrum; map shape is kept separately. A list of
+**equal-length** vectors becomes a matrix. A list of **different-length**
+vectors, or a ragged SPC/JCAMP record, returns a list containing one
+`radar_components` object per spectrum. Supply an axis list for ragged data:
+
+```{r decompose-ragged, eval=FALSE}
+ragged_spectra <- list(files_X[1, ], files_X[2, 1:48])
+ragged_axes <- list(files_axis, files_axis[1:48])
+ragged_parts <- RADAR::decompose(ragged_spectra, model = files_model,
+                                wavenumbers = ragged_axes)
+for (i in seq_along(ragged_parts)) {
+  save_components(ragged_parts[[i]],
+                  file.path(files_dir, paste0("ragged_", i, ".rds")))
+}
+```
+
+The ragged branch does not accept a single `output` path: save each returned
+object separately. Unlike a rectangular record, the separate ragged results
+do not automatically carry all the parent record's per-spectrum names and
+coordinates; preserve those separately if they are needed.
+
+## Scaling and intensity units
+
+For each spectrum, with offset `a = min(x)` and range `s = max(x) - min(x)`,
+normalization is `(x - a) / s`. Flat spectra use `s = 1`, avoiding division
+by zero. On return to original units, all components are multiplied by `s`
+and `a` is added **only to the baseline**. This preserves the standard model's
+additive relationship. Apart from numerical precision, changing an input's
+affine intensity scale changes the output components by the corresponding
+scale and baseline offset. A very large cosmic ray can compress the rest of
+the normalized spectrum into a small interval.
+
+```{r decompose-scaling}
+files_scaling <- minmax_normalize(files_X)
+range(files_scaling$normalized[1, ])
+files_scaling$scaling$offset
+files_components$meta$offset
+files_components$meta$scale
+```
+
+```{r decompose-normalized, eval=FALSE}
+normalized_parts <- RADAR::decompose(files_X, model = files_model,
+                                     units = "normalized")
+already_scaled <- RADAR::decompose(files_scaling$normalized,
+                                   model = files_model, normalize = FALSE)
+raw_predictions <- predict(files_model, files_scaling$normalized)
+```
+
+The axis is descriptive metadata: no automatic resampling, sorting or
+interpolation occurs during decomposition. A descending axis and its
+intensities stay in file order. Missing or infinite intensities are rejected;
+clean, interpolate or crop them first. Point spacing matters scientifically
+because the learned peak widths are expressed in sample points.
+
+# Inspecting, selecting and plotting the results
+
+A decomposition is an S3 `radar_components` list. Access its input,
+estimates, axis and metadata with `$`; `Components()` is the constructor
+alias for building an object from existing arrays.
+
+| Field | Content |
+| --- | --- |
+| `$spectra` / `$original` | Input on the selected intensity scale. |
+| `$baseline`, `$cosmic_rays`, `$noise`, `$peaks` | The four estimated components, with matching shapes. |
+| `$wavenumbers`, `$names`, `$positions`, `$position_names`, `$map_shape`, `$x_units` | Available axis, identity and scan information. |
+| `$units`, `$model` | Intensity scale and model architecture. |
+| `$meta` / `$metadata` | Offsets, scales, normalization flag and available source metadata. |
+| `$n_spectra`, `$length` | Spectrum count and channel count; `length(result)` also returns the spectrum count. |
+
+Source file metadata are retained under
+`result$meta$source_metadata`. Use `unclass(result)` when an ordinary list of
+its stored fields is useful. The derived fields below are calculated when
+accessed and need not be stored as additional arrays.
+
+| Derived field | Definition | Interpretation |
+| --- | --- | --- |
+| `$corrected` | `peaks` | Clean Raman signal for subsequent analysis. |
+| `$denoised` | `spectra - noise` | Remove noise while retaining baseline and cosmic rays. |
+| `$despiked` | `spectra - cosmic_rays` | Cosmic-ray removal only. |
+| `$baseline_corrected` | `spectra - baseline` | Remove the background only. |
+| `$reconstruction` | `baseline + cosmic_rays + noise + peaks` | Reconstructed input. |
+| `$residual` | `spectra - reconstruction` | Numerical zero for standard; an assessment of closure for ensemble. |
+
+```{r results-selection}
+length(files_components)
+files_components$length
+files_first <- files_components[1]
+files_subset <- files_components[c(1, 3)]
+dim(files_subset$corrected)
+stopifnot(identical(files_components$corrected, files_components$peaks))
+```
+
+R indices start at **1**. `result[i]` selects spectra and returns another
+component object; it is not list-field selection. Component and derived
+fields are selected with `$` or `[[`. Subsetting retains the corresponding
+names, positions and scaling metadata, and removes the original complete-grid
+shape because a subset need not form the same regular map.
+
+## Map arrays and integrated bands
+
+`as_map(result, "peaks")` returns an array with dimensions
+`c(map_shape, spectral_length)`. It requires a regular grid. Use any stored
+component or derived field, such as `"baseline"` or `"corrected"`.
+`band_image(result, lo, hi, component = "peaks")` integrates the selected
+component by the trapezoidal rule between the inclusive axis limits. It
+returns a grid for a map, or one value per spectrum otherwise.
+
+```{r results-maps}
+files_peaks_map <- as_map(files_components, "peaks")
+files_baseline_map <- as_map(files_components, "baseline")
+files_band <- band_image(files_components, 900, 1100)
+dim(files_peaks_map)
+files_band
+```
+
+Band integration requires an axis. The integration points are ordered by
+increasing axis value, so descending file axes are handled consistently.
+The limits may be given in either order. There must be at least one included
+point; an interval containing only one point has zero trapezoidal area.
+Coordinates, when available, place spectra at their physical grid locations;
+otherwise the recorded native R or imported map-order convention is used.
+
+## Plots
+
+`plot(result, index = 1)` and `plot_components(result, index = 1)` show the
+input and four component panels using base R graphics. The input panel also
+shows the baseline. A stored axis is used automatically; an explicit
+`wavenumbers` argument can override it. `title` changes the figure title.
+
+```{r results-plot, fig.width=7, fig.height=7}
+plot(files_components, index = 1, title = "Example spectrum and RADAR components")
+```
+
+For synthetic spectra with known targets, `plot_comparison()` overlays the
+true and predicted components. Such a comparison is meaningful only when
+the truth and prediction use the same intensity scale:
+
+```{r results-truth-comparison, eval=FALSE}
+test_set <- generate(2, length = 128, seed = 12)
+predicted <- RADAR::decompose(test_set$X, model = files_model,
+                              normalize = FALSE)
+plot_comparison(test_set, predicted, index = 1)
+```
+
+# Saving decompositions, spectra and datasets
+
+`save_components(result, path)` is the convenience form of
+`RADAR::write(result, path)`. `save_spectra(path, spectra, ...)` uses a
+path-first argument order; `write(obj, path, ...)` uses the object first.
+`save_dataset()` and `load_dataset()` retain known synthetic targets and
+generation parameters. Omitting a dataset extension appends `.npz`, which
+requires `jsonlite`; an explicit `.rds` is a base-R alternative.
+
+| Output | How a decomposition is represented |
+| --- | --- |
+| `.rds` | Native spectral record containing input, four components, axis and metadata. |
+| `.npz`, `.h5`/`.nc`, `.mat`, `.json` | Separate arrays for input and each component, plus the supported axis, names, coordinates and metadata. |
+| `.csv`, `.tsv`, `.txt`, `.parquet`, `.feather`, `.db` | A tidy table: `spectrum`, optional `name`/coordinates, `wavenumber`, `spectra`, `baseline`, `cosmic_rays`, `noise`, `peaks`. |
+| `.xlsx` | One wide sheet per array for ordinary decompositions; one tidy sheet for maps/coordinate records or explicit long layout. |
+| `.spc`, `.jdx` and other JCAMP extensions, `.npy` | Five companion files, suffixed `_spectra`, `_baseline`, `_cosmic_rays`, `_noise`, `_peaks`; `write()` returns their paths as a character vector. |
+
+Plain rectangular spectra usually use wide text and Excel output. Text uses
+a long layout for coordinates, ragged data, multiple arrays, or when the
+spectrum count is at least the channel count; the latter avoids a short-table
+orientation ambiguity. Parquet, Feather and SQLite default to long tables.
+`layout = "wide"` or `"long"` overrides table output where appropriate.
+Wide layout requires one rectangular array; it cannot hold all decomposition
+components together. Other useful writer options are `decimal` for text and
+`table`/`if_exists = "replace"`, `"append"` or `"fail"` for SQLite.
+
+Rich containers and RDS preserve model/scaling metadata. Text tables retain
+their explicit axis, values, names and coordinates, but do not serialize all
+model/provenance metadata. SPC and JCAMP carry their own limited format
+metadata; NPY has no record metadata. Choose a rich container or RDS for an
+analysis archive, and inspect the limits of the exchange format before
+expecting a lossless round trip.
+
+```{r files-save-reload}
+files_result_rds <- file.path(files_dir, "components.rds")
+save_components(files_components, files_result_rds)
+files_reloaded <- load_components(files_result_rds)
+stopifnot(identical(files_reloaded$peaks, files_components$peaks))
+
+RADAR::write(files_components, file.path(files_dir, "components.csv"))
+RADAR::write(files_X, file.path(files_dir, "plain-spectra.csv"),
+             wavenumbers = files_axis, names = files_data$names)
+files_small_set <- generate(2, length = 32, seed = 7)
+save_dataset(files_small_set, file.path(files_dir, "known-targets.rds"))
+files_restored_set <- load_dataset(file.path(files_dir, "known-targets.rds"))
+```
+
+```{r files-optional-save}
+if (requireNamespace("jsonlite", quietly = TRUE)) {
+  RADAR::write(files_components, file.path(files_dir, "components.json"))
+  RADAR::write(files_components, file.path(files_dir, "components.npz"))
+  RADAR::write(files_components, file.path(files_dir, "components.mat"))
+}
+if (all(vapply(c("openxlsx", "jsonlite"), requireNamespace,
+               logical(1), quietly = TRUE))) {
+  RADAR::write(files_components, file.path(files_dir, "components.xlsx"))
+}
+if (all(vapply(c("arrow", "jsonlite"), requireNamespace,
+               logical(1), quietly = TRUE))) {
+  RADAR::write(files_small_set, file.path(files_dir, "known-targets.parquet"))
+}
+```
+
+For single-array formats, pass **any one** companion file to
+`load_components()` and it locates the other four by suffix. All five must
+remain together, with consistent names. Loading split NPY components cannot
+recover an axis that NPY never stored.
+
+```{r files-split-components}
+files_split <- save_components(files_components,
+                                file.path(files_dir, "split-components.jdx"))
+basename(files_split)
+files_from_split <- load_components(files_split[1])
+stopifnot(max(abs(files_from_split$peaks - files_components$peaks)) < 1e-10)
+```
+
+## Converting formats
+
+
+
+# The Rscript command-line interface
+
+The package supplies `exec/radar.R`. Locate the installed script from R:
+
+```{r cli-locate}
+files_cli <- system.file("exec", "radar.R", package = "RADAR")
+stopifnot(nzchar(files_cli))
+files_cli
+```
+
+Run it as `Rscript /path/to/RADAR/exec/radar.R COMMAND ...`, or invoke the
+same parser in an R session with `radar_cli(c("COMMAND", ...))`. The shell
+examples below use `RADAR_CLI` as the script path; replace the illustrative
+path with the installed path printed above. They are not run during vignette
+building and assume you provide the named input files.
+
+```bash
+RADAR_CLI="/path/to/RADAR/exec/radar.R"
+Rscript "$RADAR_CLI" --help
+Rscript "$RADAR_CLI" formats
+Rscript "$RADAR_CLI" info
+Rscript "$RADAR_CLI" info ensemble
+Rscript "$RADAR_CLI" info tuned.rds
+```
+
+`-h`/`--help` displays the shared command help. Options use separate tokens,
+for example `--length 128`, rather than `--length=128`. The short aliases
+are `-o` for `--output`, `-m` for `--model`, `-a` for `--architecture`, and
+`-n` for `--n`. Numeric sheet indices are one based. Unknown options, missing
+values, absent input files or missing required outputs produce errors; the
+script exits with a nonzero status on failure.
+
+| Command | Purpose |
+| --- | --- |
+| `decompose` | Read one or more files, estimate components and save them. |
+| `convert` | Convert spectra or saved components between formats. |
+| `generate` | Write synthetic spectra and all four targets. |
+| `train` | Train a new native R network or fine-tune an existing one. |
+| `evaluate` | Print component error metrics or summaries on a saved target dataset. |
+| `formats` | Print supported adapters, extensions and optional R package requirements. |
+| `info` | Print the installed RADAR/R information and bundled model information, or information about a named/saved model. |
+
+## Decomposing files and collections
+
+```text
+Rscript radar.R decompose INPUT [INPUT ...] -o OUTPUT
+    [-m ensemble|standard|MODEL.rds] [--architecture standard|ensemble]
+    [--units original|normalized] [--no-normalize] [--batch-size 32]
+    [READ OPTIONS] [--out-layout wide|long]
+```
+
+The default model is ensemble. `--architecture` supplies the architecture
+to validate a saved RDS model. `--no-normalize` disables input scaling. Output format follows
+the output extension.
+
+```bash
+Rscript "$RADAR_CLI" decompose sample.wdf -o sample_components.rds
+Rscript "$RADAR_CLI" decompose spectrum.txt -o spectrum_components.csv -m standard
+Rscript "$RADAR_CLI" decompose data/*.spc -o "results/{stem}_components.parquet"
+Rscript "$RADAR_CLI" decompose run1.spc run2.spc -o results
+Rscript "$RADAR_CLI" decompose maps.h5 --key data -o map_components.npz -m tuned.rds
+Rscript "$RADAR_CLI" decompose export.csv --decimal , --layout long -o out.db
+```
+
+Shell wildcards such as `data/*.spc` are expanded by the shell. When calling
+`radar_cli()` directly from R, expand them with `Sys.glob()`:
+
+```{r cli-multiple-r, eval=FALSE}
+radar_cli(c("decompose", Sys.glob("data/*.spc"),
+             "-o", "results/{stem}_components.csv", "-m", "standard"))
+```
+
+The CLI expects one writable decomposition per input. For ragged inputs,
+use `decompose()` in R and save each returned component object separately.
+`--out-layout wide` cannot hold a five-array decomposition in a single table;
+use long layout or a format that splits components.
+
+## Reader and output options
+
+These reader options apply to `decompose` and the spectral-reader fallback
+of `convert`:
+
+| Option | Meaning |
+| --- | --- |
+| `--format NAME` | Input adapter name or extension, such as `csv`, `spc` or `jcamp`; it does not set the output format. |
+| `--layout auto|wide|columns|rows|long` | Input table layout. |
+| `--key NAME` | Spectral array in HDF5, NPZ, MATLAB or JSON. |
+| `--sheet NAME` | Excel sheet name, numeric one-based index, or `all`. |
+| `--table NAME` | SQLite table. |
+| `--query SQL` | SQL returning the desired spectral table. Quote the SQL for the shell. |
+| `--delimiter C` | Text separator, for example `--delimiter ";"`. |
+| `--decimal .|,` | Text decimal mark. |
+| `--out-layout wide|long` | Output table layout; independent of the input layout. |
+
+The R API exposes `comments`, `skip_header` and `encoding` for text input;
+these three options are not exposed by the CLI.
+
+## Converting files
+
+```text
+Rscript radar.R convert INPUT OUTPUT [READ OPTIONS] [--out-layout wide|long]
+```
+
+```bash
+Rscript "$RADAR_CLI" convert measurement.spc measurement.jdx
+Rscript "$RADAR_CLI" convert map.wdf map.parquet
+Rscript "$RADAR_CLI" convert result.rds result.xlsx
+Rscript "$RADAR_CLI" convert export.csv clean.tsv --decimal , --out-layout long
+```
+
+This inexpensive executable example converts the temporary input created in
+the vignette:
+
+```{r cli-convert-example}
+files_cli_output <- file.path(files_dir, "cli-converted.jdx")
+radar_cli(c("convert", files_csv, files_cli_output))
+stopifnot(file.exists(files_cli_output))
+```
+
+## Generating known-target datasets
+
+```text
+Rscript radar.R generate -n N -o OUTPUT [--length 1024] [--seed 0]
+    [--train] [--min-width W] [--max-width W]
+```
+
+Defaults follow the test generator: length 1024, minimum width 10, maximum
+width 300, up to 10 peaks and increased noise. `--train` switches to minimum
+width 5, maximum width 256, at most 5 peaks and no increased-noise mode.
+Explicit `--min-width`/`--max-width` override those widths. The CLI's default
+seed is 0. Choose a multi-array format to keep all known targets together.
+
+```bash
+Rscript "$RADAR_CLI" generate -n 1000 -o test.rds
+Rscript "$RADAR_CLI" generate -n 5000 --length 1340 --train -o my_train.npz
+Rscript "$RADAR_CLI" generate -n 100 --length 750 --min-width 8 --max-width 120 --seed 12 -o test.h5
+```
+
+```{r cli-generate-example}
+files_cli_dataset <- file.path(files_dir, "cli-targets.rds")
+radar_cli(c("generate", "-n", "2", "--length", "32", "--seed", "0",
+             "-o", files_cli_dataset))
+stopifnot(nrow(load_dataset(files_cli_dataset)$X) == 2)
+```
+
+## Training and fine-tuning from the command line
+
+```text
+Rscript radar.R train -o MODEL.rds [-a ensemble|standard]
+    [--init pretrained|MODEL.rds] [--data DATASET]
+    [--epochs 10] [--steps 1000] [--batch-size 1] [--length 750]
+    [--learning-rate LR] [--validation-size 1000]
+    [--checkpoint BEST.rds] [--seed 0] [--verbose 1]
+```
+
+Without `--data`, each training step generates a fresh synthetic batch.
+With a saved dataset, complete dataset batches determine steps per epoch.
+`--init pretrained` fine-tunes the selected bundled architecture;
+`--init FILE` starts from a saved RDS model. Without initialization,
+the model is newly initialized. Retain a model after training with `-o`.
+Omitting `--learning-rate` uses the original 12-level learning-rate schedule;
+a small explicit rate such as `1e-5` is suitable for a fine-tuning experiment.
+`--checkpoint` saves the best model by validation loss, or training loss if
+validation is disabled.
+
+```bash
+# Small interface smoke run, not a scientifically trained model.
+Rscript "$RADAR_CLI" train -a standard --epochs 1 --steps 1 --batch-size 1 --length 64 --validation-size 0 -o smoke.rds
+
+# Fine-tune on a dataset, using a small learning rate.
+Rscript "$RADAR_CLI" train -a standard --init pretrained --data my_train.npz --epochs 5 --learning-rate 1e-5 --checkpoint best.rds -o tuned.rds
+```
+
+The R training API offers additional generator settings, callbacks,
+validation datasets and model-size controls; see the training section for
+those workflows. The CLI does not expose every R function argument.
+
+## Evaluation, formats and model information
+
+```text
+Rscript radar.R evaluate DATASET [-m ensemble|standard|MODEL.rds] [--statistics]
+Rscript radar.R formats
+Rscript radar.R info [MODEL.rds|standard|ensemble]
+```
+
+```bash
+Rscript "$RADAR_CLI" evaluate test.rds -m standard
+Rscript "$RADAR_CLI" evaluate test.rds -m tuned.rds --statistics
+Rscript "$RADAR_CLI" formats
+Rscript "$RADAR_CLI" info tuned.rds
+```
+
+`evaluate` expects a dataset containing all four true components, and prints
+R lists of RMSE, MAE, maximum error and R-squared for each component.
+`--statistics` instead prints means, medians and variances of per-spectrum
+RMSE and maximum error. The output is printed R tables.
+The current evaluation CLI uses its default prediction batch size and does
+not forward a supplied `--batch-size`; use `evaluate()` in R for that control.
+# Models and the scientific method
+
+For diagrams and detailed layer shapes, see the companion
+[architecture guide](architectures.html), also available with
+`vignette("architectures", package = "RADAR")`.
+
+## The two architectures
+
+Both RADAR networks take normalized single-channel spectra and return four
+components in the fixed order given by `COMPONENTS`: `baseline`, `cosmic_rays`,
+`noise`, and `peaks`. In R, a spectral matrix has one spectrum per row. The
+low-level `predict()` method also accepts a batch-by-points-by-one array and
+always returns a named list of four matrices with the input's spectral length.
+The networks operate on sample indices; they do not use the wavenumber axis as
+a model input.
+
+| Architecture | Default hidden channels (`scaler`) | Key dimension (`dim_red_size`) | Parameters | Noise and reconstruction |
+|:--|--:|--:|--:|:--|
+| `standard` | 20 | 256 | 585,299 | Noise is the input minus the other three components; reconstruction is additive to numerical precision. |
+| `ensemble` | 10 | 144 | 280,592 | A second stage predicts noise directly with a tanh head; reconstruction can differ from the input. |
+
+The common building blocks are:
+
+1. **Encoder.** A one-dimensional convolution of width 128 produces `scaler`
+   feature channels. Batch normalization and LeakyReLU, with negative slope
+   0.3, follow the convolution.
+2. **Learned key and global context.** A width-64 convolution of the encoder
+   features produces `D = dim_red_size` channels. Global max pooling over the
+   spectrum gives a learned key vector of length `D`. The outer product of the
+   signal of length `L` with that key forms an `L` by `D` map. Two
+   two-dimensional convolutions, with kernel sizes `c(32, floor(D / 10))` and
+   `c(16, floor(D / 10))` and strides `c(1, sqrt(D))`, reduce the key dimension
+   to one while preserving the spectral length. This gives every position
+   information about the whole spectrum.
+3. **Decoder.** After reshaping to one-dimensional features, convolutions of
+   widths 128 and 64, each followed by batch normalization and LeakyReLU,
+   produce the features used by the component heads.
+
+There are two different padding rules. One-dimensional convolutions and
+average-pooling operations extend the input by repeating its first and last
+values, then apply a valid operation. A window of size `k` gets `floor(k / 2)`
+extra values on the left and `floor(k / 2) - 1 + k %% 2` on the right. These
+asymmetric counts for even windows preserve the original alignment. The
+strided **two-dimensional** convolutions use zero padding with the usual
+`same` rule. They do not use edge repetition.
+
+| Head | Main operations | Purpose |
+|:--|:--|:--|
+| Baseline | Width-64 convolution; average pooling of width 33; ReLU | Broad, smooth background |
+| Cosmic rays | Width-3 convolution; ReLU | Very narrow, often one- or two-point spikes |
+| Peaks | Width-8 convolution; average pooling of width 4; ReLU | Raman bands with sharp features retained |
+| Noise, standard | Input minus baseline, cosmic rays and peaks | Exact additive remainder |
+| Noise, ensemble | Width-1 convolution; tanh | Independently estimated signed noise |
+
+In the standard network, the baseline and peak convolutions also have a ReLU
+before pooling. In the ensemble, their ReLU follows pooling. Hidden kernels
+use L1 and L2 penalties of `1e-6` by default; head kernels use L1 `1e-5` and
+L2 `1e-6`. Biases and activities use L2 `1e-6`. Batch normalization uses epsilon
+`0.001`, moving-moment coefficient `0.99`, and learned scale and shift.
+
+The **standard** model has one encoder, key block and decoder. Its three
+nonnegative heads estimate baseline, cosmic rays and peaks; noise is the
+remainder. Its component loss is root mean squared error (RMSE).
+
+The **ensemble** works in two stages. Stage 1 estimates baseline and cosmic
+rays. The reduced spectrum, `input - baseline - cosmic_rays`, enters a second
+encoder and learned-key block. Stage 1's second two-dimensional convolution
+also supplies a residual connection to the corresponding features in stage 2.
+The second decoder estimates peaks and noise. Each component uses the joined
+loss `RMSE + (1 - R_squared)`. The independent noise head explains why an
+ensemble decomposition can have a nonzero `$residual`; that behavior is part
+of the published architecture.
+
+```{r models-load-native}
+library(RADAR)
+models_standard <- load_model("standard")
+models_ensemble <- load_pretrained("ensemble")
+models_standard
+models_ensemble
+COMPONENTS
+```
+
+Raw `predict()` does not normalize its input or restore intensity units. Use
+it when the values already have the desired network scale; use
+`RADAR::decompose(..., model = model)` when preprocessing and unit restoration
+are needed. Its defaults are `batch_size = 32` and `verbose = 0`. The native
+prediction method evaluates spectra individually to bound attention memory,
+even when a larger batch size is supplied. A map cube should first be passed
+to the high-level decomposition interface, since the third dimension of the
+low-level prediction array means the single channel.
+
+```{r models-raw-prediction}
+models_input <- matrix(seq(0, 1, length.out = 32), nrow = 1)
+models_raw <- predict(models_standard, models_input, batch_size = 1, verbose = 0)
+vapply(models_raw, ncol, integer(1))
+max(abs(Reduce(`+`, models_raw) - models_input))
+```
+
+## Building a network of another size
+
+`build_model()`, `build_standard_model()`, `build_ensemble_model()` and
+`new_model()` create randomly initialized native `radar_model` objects.
+`dim_red_size` must be a perfect square of at least 16; `scaler` is a positive
+integer. `l1_param`, `l2_param`, `seed` and `name` control regularization,
+initialization and naming. The pretrained weights fit the default dimensions
+only. A different channel count or key dimension needs newly trained weights.
+
+```{r models-custom-size}
+models_small <- new_model("standard", scaler = 2, dim_red_size = 16,
+                          l1_param = 1e-6, l2_param = 1e-6, seed = 3)
+models_small$n_parameters
+models_small$hyperparameters
+
+# More control over the same native model representation:
+models_small <- compile_model(models_small, learning_rate = 1e-5)
+```
+
+`compile_model()` records the learning-rate setting. `train()` configures its
+own optimizer for each training call. The R
+model has no underlying `$model` that must be accessed to make it work.
+`print(model)`, `$architecture`, `$hyperparameters`, `$n_parameters`, `$weights`,
+`$history`, `$training` and `model_info()` expose its structure and provenance.
+
+## Bundled pretrained models
+
+`inst/weights/standard.rds` and `inst/weights/ensemble.rds` contain complete
+native models. `load_model()` reads the installed objects directly.
+Each model was trained on 240 million synthetic spectra of length 750:
+12 epochs, 200,000 batches per epoch and 100 spectra per batch. Training
+used band widths from 5 to 255 samples and the twelve-level schedule below.
+The bundled numerical regression fixtures cover both architectures and all
+four components at spectral lengths 1,024 and 1,738, with tolerance `1e-5`.
+
+## Model persistence and software information
+
+`load_model("standard")` and `load_model("ensemble")` load pretrained models.
+Passing an existing `radar_model` returns it. `save_model()` writes the native
+R representation using RDS. It records the architecture, hyperparameters,
+weights, parameter count, origin, training record and history, plus the RADAR
+version, R version, platform and UTC save date. It creates missing parent
+directories. Use `overwrite = FALSE` to protect an existing model file.
+
+```{r models-save-and-inspect}
+models_file <- tempfile(fileext = ".rds")
+save_model(models_small, models_file)
+models_reloaded <- load_model(models_file)
+models_info <- model_info(models_file)
+models_info[c("architecture", "hyperparameters", "n_parameters", "saved_with")]
+unlink(models_file)
+```
+
+`model_info(model_or_path, show = TRUE)` prints a readable summary and returns
+a list. For a trained model, `$training` includes epoch and batch settings,
+learning-rate description, spectra seen and final loss; fine-tuning preserves
+the earlier record under `$training$started_from`. Checkpoint metadata is
+updated before the checkpoint is saved, so it describes those checkpoint
+weights. Native RDS files do **not** preserve Adam moments for exact optimizer
+continuation: every call to `train()` starts fresh optimizer state.
+
+# Synthetic spectra and known component targets
+
+## Component distributions
+
+Synthetic spectra make supervised training possible because all four true
+components are available separately. The R generator follows the original
+scientific distributions:
+
+| Component | Distribution before final mixture scaling |
+|:--|:--|
+| Baseline | A random subset of five elementary backgrounds: linear, sinusoidal, polynomial, Gaussian and Lorentzian. Each of the five is independently included or omitted, and included curves add together. |
+| Cosmic rays | A uniformly drawn integer from 0 through 29 spikes, with positions sampled across the spectrum and heights uniform on `[0, 1)`. Repeated positions are overwritten in draw order. |
+| Noise | White Gaussian noise with standard deviation drawn uniformly from `[0, 0.1)`; the first and last samples are set to zero. |
+| Peaks | Between 1 and `max_num_peaks - 1` bands; integer widths are drawn from `[min_width, max_width)`. Gaussian, Lorentzian and Voigt profiles each have approximately one-third probability, random heights and random locations. Overlapping profiles add; the final peak spectrum is normalized to a maximum close to one and its endpoints are zero. |
+
+The elementary baselines are drawn over a coordinate from zero to one.
+The linear background has two independently uniform endpoints. The sine has
+random phase and stretch, with maximum periodicity controlled by
+`sin_max_periodicity = 8`. The polynomial degree is an integer from 2 to 10 by
+default. Gaussian and Lorentzian centers lie near one end, in `[0, 0.2]` or
+`[0.8, 1]`; signs, widths, scaling and offsets vary. Normalization, scaling and
+shifting keep each elementary curve within `[0, 1]` before summing the subset.
+
+An individual band is evaluated over `[-extremity, extremity]`, with default
+`extremity = 0.5`. Gaussian bands use an integer radial-basis parameter from
+5 through 9; Lorentzian widths are uniform from 0.1 to 0.3. Voigt profiles use
+Gaussian width `sigma` uniform from 0.01 to 0.3 and Lorentzian width `gamma`
+uniform from 0 to 0.1. The implementation selects Gaussian for a uniform draw
+below 0.33, Lorentzian from 0.33 to below 0.66, and Voigt otherwise; their
+probabilities are 0.33, 0.33 and 0.34. A separate uniform height scales each
+band. Voigt profiles use a native complex rational approximation to the
+complex probability function; SciPy is not required.
+
+`generate_sample()` draws three integer weights from 0 through 9 for baseline,
+cosmic rays and peaks, then divides them by their sum. It redraws an all-zero
+weight vector or a mixture with zero maximum. Noise is added after the
+signal-component mixture and uses the peak component's mixture weight.
+
+| Setting | Argument | Scaling and noise |
+|:--|:--|:--|
+| Training | `increase_noise = FALSE` | Divide the signal components by the mixture maximum; scale noise by the peak weight; set noise to zero in 5% of samples. With consistent scaling, the input is the sum of the normalized targets. |
+| Test | `increase_noise = TRUE` | Multiply noise by an integer from 3 through 9 and by the peak weight; min-max normalize the noisy mixture to `[0, 1]`. The baseline absorbs the subtracted minimum, preserving additivity. |
+
+Band width is expressed in **points**, not inverse centimeters. For spectra
+shorter than 500 points, `generate_spectrum()` overrides the requested band
+widths with lower bound `max(floor(length / 32), 1)` and exclusive upper bound
+`max(floor(length / 2), lower_bound + 1)`, matching the original short-spectrum
+rule. This also applies when `generate_sample()` or `generate_dataset()`
+calls it. Width options supplied for a short example therefore do not change
+that rule.
+
+## Finite datasets and default settings
+
+`generate()` is an alias for `generate_dataset()`. Both return a
+`synthetic_dataset` with `$X` (also `$spectra`), `$baseline`, `$cosmic_rays`,
+`$noise`, `$peaks` and `$params`. Each array is spectra by points. `$targets`
+is a named list in `COMPONENTS` order, `$n_spectra` is the number of spectra,
+and `$length` is the number of points. `length(dataset)` counts spectra;
+`dataset[i]` selects rows while retaining a dataset object.
+
+| Interface | Length | Width bounds | `max_num_peaks` | `increase_noise` | Other defaults |
+|:--|--:|:--|--:|:--|:--|
+| `generate()` / `generate_dataset()` | 1024 | `[10, 300)` | 10 | `TRUE` | `seed = NULL`, consistent scaling |
+| `generate_sample()` | 1024 | `[5, 256)` | 10 | `FALSE` | `rng = NULL`, consistent scaling |
+| `batch_generator()` | 750 | `[5, 256)` | 5 | `FALSE` | `batch_size = 100`, `seed = NULL` |
+| Synthetic data inside `train()` | 750 | `[5, 256)` | 5 | `FALSE` | Native default `batch_size = 1`, `seed = 0` |
+
+The upper peak-count bound is exclusive: `max_num_peaks = 5` means one to four
+bands. `max_num_peaks <= 1` produces one band. The upper width bound is also
+exclusive. Elementary component functions have their own defaults, so pass
+explicit bounds when calling them directly.
+
+```{r synthetic-finite-data}
+synthetic_demo <- generate_dataset(4, length = 128, seed = 17)
+dim(synthetic_demo$X)
+names(synthetic_demo$targets)
+synthetic_demo$params
+length(synthetic_demo[1:2])
+max(abs(synthetic_demo$X - Reduce(`+`, synthetic_demo$targets)))
+```
+
+`as_training_data()` produces `list(X, targets)`, with `$X` shaped
+`c(n_spectra, length, 1)` and four target matrices. These remain native R
+arrays in double precision.
+
+```{r synthetic-training-arrays}
+synthetic_arrays <- as_training_data(synthetic_demo)
+dim(synthetic_arrays$X)
+vapply(synthetic_arrays$targets, ncol, integer(1))
+```
+
+`train_test_datasets()` creates independent training and testing streams. Its
+training defaults are widths 5--256, at most four peaks, and normal noise;
+testing defaults are widths 10--300, at most nine peaks, and amplified noise.
+`train_kwargs` and `test_kwargs` are lists that override these defaults.
+
+```{r synthetic-independent-splits}
+synthetic_split <- train_test_datasets(
+  n_train = 4, n_test = 2, length = 64, seed = 23,
+  train_kwargs = list(max_num_peaks = 5),
+  test_kwargs = list(max_num_peaks = 5)
+)
+synthetic_split$train$params$increase_noise
+synthetic_split$test$params$increase_noise
+```
+
+Datasets can be saved and reloaded through `save_dataset()` and
+`load_dataset()` using a multi-array format. For example, an RDS round trip
+uses no optional format dependencies:
+
+```{r synthetic-save-dataset}
+synthetic_file <- tempfile(fileext = ".rds")
+save_dataset(synthetic_split$train, synthetic_file)
+synthetic_restored <- load_dataset(synthetic_file)
+stopifnot(identical(synthetic_restored$X, synthetic_split$train$X))
+unlink(synthetic_file)
+```
+
+## Streams, single samples and component-level control
+
+`batch_generator()` returns a function with its own advancing random stream.
+Each call generates a fresh batch and returns `$X`, `$targets` and `$dataset`.
+It is an R
+closure.
+
+```{r synthetic-batch-stream}
+synthetic_next <- batch_generator(length = 64, batch_size = 2, seed = 31)
+synthetic_batch_one <- synthetic_next()
+synthetic_batch_two <- synthetic_next()
+dim(synthetic_batch_one$X)
+identical(synthetic_batch_one$X, synthetic_batch_two$X)
+```
+
+The lower-level functions allow components to be studied separately:
+
+```{r synthetic-components}
+synthetic_sample <- generate_sample(length = 64, rng = 41,
+                                    increase_noise = FALSE)
+synthetic_background <- generate_baseline(64, rng = 42)
+synthetic_bands <- generate_peaks(64, max_num_peaks = 6,
+                                min_peak_width = 3, max_peak_width = 15, rng = 43)
+synthetic_spikes <- generate_cosmic_rays(64, max_num = 10, rng = 44)
+synthetic_noise <- generate_noise(64, scaling_factor = 0.1, rng = 45)
+synthetic_elementary <- make_baselines(64, rng = 46)
+synthetic_one_band <- get_random_peak(length = 16, rng = 47)
+synthetic_unscaled <- generate_spectrum(64, rng = 48)
+names(synthetic_unscaled)
+```
+
+`generate_spectrum()` returns the four **unscaled** components.
+`generate_sample()` returns `$spectrum` and `$targets` after mixture weighting
+and the selected scaling rule. `make_baselines()` exposes the five background
+curves; `get_random_peak()` produces one band. `generate_noise()` accepts
+`scaling_factor`, and `generate_cosmic_rays()` accepts the exclusive count
+bound `max_num`.
+
+## Reproducibility and legacy scaling
+
+Supply `seed` to finite datasets or streams and `rng` to single-sample and
+component functions for reproducible R draws. Seeded generator calls restore
+the caller's R random state; each seeded batch closure maintains its own
+state between calls. With `seed = NULL` or `rng = NULL`, the current R random
+state is used. `train()` and
+model initialization have their own seed arguments; the generator's
+state-preservation guarantee does not imply that training leaves the caller's
+random state untouched.
+
+```{r synthetic-reproducible-seeds}
+synthetic_same <- generate_dataset(4, length = 128, seed = 17)
+stopifnot(identical(synthetic_demo$X, synthetic_same$X))
+```
+
+RADAR uses consistent scaling by default. Set `legacy_scaling = TRUE` to
+reproduce the original training-input rule. This option exists on
+`generate_sample()`, `generate_dataset()`, `batch_generator()` and `train()`;
+it affects only `increase_noise = FALSE`. The pretrained models were trained
+with the legacy rule. The amplified-noise test setting was already consistent
+and is unchanged.
+
+```{r synthetic-legacy-scaling}
+synthetic_legacy <- generate_sample(128, rng = 51, legacy_scaling = TRUE)
+synthetic_consistent <- generate_sample(128, rng = 51, legacy_scaling = FALSE)
+c(legacy_difference = max(abs(synthetic_legacy$spectrum -
+                                Reduce(`+`, synthetic_legacy$targets))),
+  consistent_difference = max(abs(synthetic_consistent$spectrum -
+                                    Reduce(`+`, synthetic_consistent$targets))))
+```
+
+# Training and fine-tuning in R
+
+## What is optimized
+
+Native reverse-mode differentiation covers every convolution, learned key,
+outer product, pooling operation, batch-normalization scale and shift,
+residual connection, and component head. Global-max ties share their
+derivative equally. Batch normalization computes minibatch/spatial statistics
+and updates its moving moments during training; inference uses the moving
+moments. Adam uses `beta1 = 0.9`, `beta2 = 0.999` and epsilon `1e-7`, with the
+epsilon added to the uncorrected second-moment denominator.
+
+The component loss is RMSE for `standard`, or RMSE plus `1 - R_squared` for
+`ensemble`. Component losses are summed and kernel, bias and activity
+regularization is added. Validation uses inference-mode normalization and
+includes regularization. The exported helpers
+`root_mean_squared_error()`, `r_square()`, `r_square_loss()` and
+`joined_loss()` expose the training formulas. These operate over all values
+of the supplied batch; their stabilized `R_squared` denominator uses
+`1e-7`. They serve a different purpose from per-spectrum reporting metrics.
+
+Calling `train(model = "standard")` or `train(model = "ensemble")` with
+`init = NULL` creates a **new random network**. In contrast,
+`load_model("standard")` returns pretrained weights. To fine-tune, supply
+`init = "pretrained"`, an existing model object, or a saved model through
+`init`. Always retain the returned model: native R objects are not updated by
+reference.
+
+## Training options and native defaults
+
+| Argument | Native R default | Meaning |
+|:--|:--|:--|
+| `data` | `NULL` | Fresh synthetic batches; alternatively a dataset, `list(X, targets)`, or a dataset path. |
+| `model` | `"ensemble"` | Architecture for new weights, or an existing `radar_model`. |
+| `init` | `NULL` | Random initialization; use `"pretrained"` or a saved model path to start elsewhere. An existing `model` object takes precedence. |
+| `save_to` | `NULL` | Save the final model to an RDS file. |
+| `epochs` | 10 | Passes over fixed data, or synthetic-stream epochs. |
+| `steps_per_epoch` | 1000 | Synthetic batches per epoch; ignored for a fixed dataset. |
+| `batch_size` | 1 | Spectra in one optimizer step. |
+| `learning_rate` | `"original"` | Original twelve-level schedule stretched to this run; a positive constant or an R function of zero-based step is also accepted. |
+| `length`, `min_width`, `max_width`, `max_num_peaks` | 750, 5, 256, 5 | Synthetic-training geometry; count and upper width bounds are exclusive. |
+| `increase_noise`, `legacy_scaling` | `FALSE`, `FALSE` | Synthetic-training noise and input-scaling rules. |
+| `validation_data` | `NULL` | No validation by default; alternatively `"synthetic"`, a dataset, an array/target list, or a dataset path. |
+| `validation_size`, `validation_length` | 100, 2000 | Number and length when generating synthetic validation data. |
+| `seed` | 0 | Initialization and training randomness; `NULL` retains current random state. |
+| `callbacks` | `NULL` | List of native R functions called after each epoch. |
+| `checkpoint_path` | `NULL` | RDS file retaining the epoch with the lowest monitored loss. |
+| `verbose` | 1 | Print epoch losses; use 0 for quiet execution. |
+
+For **fixed data**, each epoch shuffles the rows and visits every spectrum.
+The number of optimizer steps is `ceiling(n_spectra / batch_size)` per epoch.
+Targets may be an unnamed list in `COMPONENTS` order or a named list with
+those four component names. Each target must be a finite matrix matching
+`X`; a `c(n_spectra, length, 1)` input array is also accepted.
+
+## A small fixed-data training run
+
+The following is an executable demonstration with a small network and four
+short training spectra. Its purpose is to show the workflow, not to establish
+an accurate new model.
+
+```{r training-fixed-small}
+training_initial <- new_model("standard", scaler = 2, dim_red_size = 16,
+                              seed = 61)
+training_fit <- train(synthetic_split$train, model = training_initial,
+                      epochs = 2, batch_size = 2, learning_rate = 1e-5,
+                      validation_data = synthetic_split$test,
+                      seed = 62, verbose = 0)
+training_fit$history$loss
+training_fit$history$val_loss
+training_fit$history$component_loss
+```
+
+`$history$component_loss` is an epoch-by-component matrix. `$history$loss`
+includes regularization; the separate component matrix does not.
+`$history$val_loss` is `NULL` when validation is disabled. A model can also be
+trained on plain arrays:
+
+```{r training-array-data, eval=FALSE}
+training_from_arrays <- train(
+  list(synthetic_split$train$X, synthetic_split$train$targets),
+  model = new_model("standard", scaler = 2, dim_red_size = 16, seed = 61),
+  epochs = 1, batch_size = 2, learning_rate = 1e-5, verbose = 0
+)
+```
+
+## Synthetic-stream training
+
+A short native stream run is equally explicit:
+
+```{r training-stream-small}
+training_stream <- train(
+  data = NULL,
+  model = new_model("standard", scaler = 2, dim_red_size = 16, seed = 63),
+  epochs = 1, steps_per_epoch = 2, batch_size = 1, length = 64,
+  max_num_peaks = 5, increase_noise = FALSE,
+  validation_data = NULL, learning_rate = 1e-5, seed = 64, verbose = 0
+)
+training_stream$training[c("epochs", "steps_per_epoch", "batch_size",
+                            "spectra_seen", "final_loss")]
+```
+
+```{r training-original-full-schedule, eval=FALSE}
+training_full <- train(
+  model = "ensemble", epochs = 12, steps_per_epoch = 200000,
+  batch_size = 100, length = 750, min_width = 5, max_width = 256,
+  max_num_peaks = 5, increase_noise = FALSE, legacy_scaling = TRUE,
+  learning_rate = "original",
+  validation_data = "synthetic", validation_size = 1000,
+  validation_length = 2000, checkpoint_path = "best_original.rds",
+  save_to = "trained_original.rds", seed = 0
+)
+```
+
+## Learning-rate schedules
+
+`ORIGINAL_LR_VALUES` contains the original levels:
+
+`0.00105, 0.00075, 0.00045, 0.00015, 0.000105, 0.000075, 0.000045,
+0.000015, 0.0000105, 0.0000075, 0.0000045, 0.0000015`.
+
+The original run held each level for approximately 200,000 optimizer steps.
+`original_learning_rate_schedule(total_steps)` places the eleven boundaries
+at rounded multiples of `total_steps / 12`, retaining the original
+piecewise-constant boundary convention. Runs shorter than twelve steps use
+the first level throughout. `train(learning_rate = "original")` computes the
+total number of steps from the stream settings or fixed dataset and uses
+this schedule.
+
+```{r training-schedule-functions}
+training_schedule <- original_learning_rate_schedule(total_steps = 120)
+training_steps <- c(0, 11, 21, 61, 111)
+data.frame(step = training_steps,
+           learning_rate = vapply(training_steps, training_schedule, numeric(1)))
+
+# Any positive-valued R function of the zero-based optimizer step can be used.
+training_custom_schedule <- function(step) 1e-5 / (1 + step / 100)
+training_custom_schedule(0)
+```
+
+## Checkpoints, callbacks and continuation
+
+`checkpoint_path` saves the best epoch by validation loss when validation is
+provided, or by training loss otherwise. `save_to` writes the final returned
+model, which can differ from the best checkpoint. Epoch-end callbacks are
+ordinary R functions with signature `function(epoch, model, logs)`. `logs`
+contains `loss` and, when available, `val_loss`. A callback can inspect or
+record progress; returning a `radar_model` replaces the current model.
+These callbacks are ordinary R functions.
+
+```{r training-checkpoints-callbacks}
+training_checkpoint <- tempfile(fileext = ".rds")
+training_callback_log <- numeric()
+training_record <- function(epoch, model, logs) {
+  training_callback_log <<- c(training_callback_log, logs$loss)
+  invisible(NULL)
+}
+training_checkpoint_fit <- train(
+  synthetic_split$train,
+  model = new_model("standard", scaler = 2, dim_red_size = 16, seed = 65),
+  epochs = 2, batch_size = 2, learning_rate = 1e-5,
+  validation_data = synthetic_split$test,
+  callbacks = list(training_record), checkpoint_path = training_checkpoint,
+  seed = 66, verbose = 0
+)
+training_best <- load_model(training_checkpoint)
+training_callback_log
+training_best$training[c("epochs", "spectra_seen", "final_loss")]
+unlink(training_checkpoint)
+```
+
+To continue from native saved weights, call `train(data, model = saved_model)`
+or `train(data, model = "standard", init = "previous.rds")`. Weights and
+batch-normalization moments continue from the supplied model; Adam moments
+and optimizer step numbering restart. The `started_from` provenance chain
+records each training invocation.
+
+## Fine-tuning pretrained weights
+
+Adapting a network to an instrument requires examples with **known** baseline,
+cosmic-ray, noise and peak components. Synthetic spectra resembling the
+instrument's sampling, band widths and noise are often the practical choice.
+Keep a separate held-out test set for assessment.
+
+The following realistic-size example is not executed during vignette builds:
+
+```{r training-pretrained-finetune, eval=FALSE}
+training_instrument <- train_test_datasets(
+  n_train = 5000, n_test = 500, length = 1340, seed = 71,
+  train_kwargs = list(min_width = 8, max_width = 300),
+  test_kwargs = list(min_width = 8, max_width = 300)
+)
+training_before <- evaluate("ensemble", training_instrument$test)
+training_tuned <- train(
+  training_instrument$train, model = "ensemble", init = "pretrained",
+  epochs = 5, batch_size = 1, learning_rate = 1e-5,
+  validation_data = training_instrument$test, save_to = "instrument_tuned.rds"
+)
+training_after <- evaluate(training_tuned, training_instrument$test)
+```
+
+Use a small constant learning rate, such as `1e-5` or smaller, for
+fine-tuning. The original schedule starts at `1.05e-3` and can quickly change
+pretrained weights. Always compare held-out performance before and after.
+Small training sets can make results worse because batch-normalization
+statistics are re-estimated from only a few batches. Retain the pretrained
+model if the tuned version is poorer.
+
+The original models were trained on 750-point spectra with bands 5--256
+points wide. A different instrument can have the same chemical bands spread
+over very different numbers of samples. Resampling or targeted fine-tuning
+may be useful when that geometry differs substantially. Input normalization
+allows different intensity scales; it does not establish accuracy for every
+instrument or spectrum.
+
+# Evaluation, error statistics and comparisons
+
+## Reporting metrics
+
+`evaluate()` accepts a pretrained model name, native model path, or model
+object, and a synthetic dataset or saved dataset path. It defaults to
+`normalize = FALSE`, since the synthetic inputs already have their intended
+network scale and the ground-truth targets use that scale. If you enable
+normalization, the comparison still needs consistent target units.
+
+For errors `e_ij = prediction_ij - truth_ij` at point `j` of spectrum `i`:
+
+| Reported metric | Per-spectrum calculation | Summary in `evaluate()` |
+|:--|:--|:--|
+| RMSE | `sqrt(mean(e_i^2))` | Arithmetic mean across spectra |
+| MAE | `mean(abs(e_i))` | Arithmetic mean across spectra |
+| Max error | `max(abs(e_i))` | Arithmetic mean of each spectrum's worst local error |
+| R squared | `1 - sum(error^2) / sum((truth - mean(truth))^2)` | Pooled across every point of every spectrum for that component |
+
+The reported max error is not the single largest value in the entire
+dataset. It averages spectrum-wise maxima. It complements RMSE: a missed
+cosmic ray, clipped peak top or localized baseline bump can be important even
+when its error is diluted by many correctly predicted points.
+
+Pooled R squared avoids averaging undefined per-spectrum values for constant
+components, such as spectra with no cosmic rays. It can be negative for a
+poor prediction. If the pooled truth itself is constant, the reporting
+function returns `NaN` when its total variation is at or below `1e-12`.
+
+```{r evaluation-model-metrics}
+evaluation_demo <- generate_dataset(2, length = 128, seed = 81)
+evaluation_standard <- evaluate(models_standard, evaluation_demo)
+evaluation_ensemble <- evaluate(models_ensemble, evaluation_demo)
+evaluation_standard$peaks
+evaluation_ensemble$peaks
+```
+
+`statistics = TRUE` returns mean, median and **population variance** across
+spectra of the per-spectrum RMSE and maximum error. Variance is
+`mean((x - mean(x))^2)`, rather than R's sample variance `var(x)`.
+
+```{r evaluation-error-statistics}
+evaluation_summary <- evaluate(models_standard, evaluation_demo,
+                                statistics = TRUE)
+evaluation_summary$noise
+```
+
+The returned component list contains `rmse_mean`, `rmse_median`,
+`rmse_variance`, `max_error_mean`, `max_error_median` and
+`max_error_variance`. The units of RMSE, MAE and maximum error match the
+component intensities; variance has squared intensity units and R squared is
+unitless.
+
+## Low-level metrics and visual checks
+
+`evaluate_components()` and `error_statistics()` accept datasets,
+decomposition objects or ordinary named lists containing the four components.
+`per_spectrum_errors()` retains the individual spectrum errors. `rmse()`,
+`mae()`, `max_error()` and `r2()` reduce the final axis by default; with a
+spectra-by-points matrix this gives one number per row. Set `axis = NULL` to
+pool all values. R axis indices are one-based, and `axis = -1` selects the
+last axis.
+
+```{r evaluation-component-comparison, fig.height=8, fig.width=7}
+evaluation_parts <- RADAR::decompose(evaluation_demo$X, model = models_standard,
+                                     normalize = FALSE)
+evaluation_individual <- per_spectrum_errors(evaluation_demo, evaluation_parts)
+evaluation_individual$peaks
+rmse(evaluation_demo$peaks, evaluation_parts$peaks)
+r2(evaluation_demo$peaks, evaluation_parts$peaks, axis = NULL)
+evaluate_components(evaluation_demo, evaluation_parts)$peaks
+plot_comparison(evaluation_demo, evaluation_parts, index = 1)
+```
+
+`plot_comparison()` displays the input and true component curves with the
+predictions overlaid as red dashed lines. `plot_components()` or
+`plot(evaluation_parts, index = 1)` shows an ordinary decomposition. Plotting
+uses R's standard graphics and one-based spectrum indices. Inspect a few
+cases before drawing conclusions from aggregate scores. Exceptionally sharp,
+intense Raman bands can be assigned partly to cosmic rays; structured noise
+can leak into the peak component. A very large cosmic ray also compresses the
+rest of its spectrum into a small normalized intensity range.
+
+`snr(signal, noise, predicted_noise = 0, eps = 1e-4)` is the mean signal divided
+by the population standard deviation of `noise - predicted_noise`, with `eps`
+added to the denominator. Select a signal-band region and a detrended,
+band-free noise region that make physical sense for your analysis.
+
+```{r evaluation-snr-helper}
+evaluation_signal_region <- c(1.0, 1.2, 1.1, 1.0)
+evaluation_noise_region <- c(-0.02, 0.01, 0.02, -0.01)
+snr(evaluation_signal_region, evaluation_noise_region)
+```
+
+
+# Complete R API reference
+
+## The eight main functions
+
+| R function | Inputs and result |
+|---|---|
+| `RADAR::decompose(spectra, model = "ensemble", output = NULL, ...)` | A vector, spectra-by-channel matrix, map array, list of spectra, spectral-data object, synthetic dataset or file becomes `radar_components`; unequal lengths produce a list of decompositions. `output` writes the result. |
+| `RADAR::read(path, format = NULL, ...)` | Read a supported spectral file into a `spectral_data` record. |
+| `RADAR::write(obj, path, format = NULL, wavenumbers = NULL, names = NULL, ...)` | Write a numeric array, spectral record, decomposition or synthetic dataset; return the output path or companion-file paths. |
+| `formats(show = FALSE)` | Return a data frame describing adapters, extensions, read/write support and optional dependencies; `show = TRUE` prints it. |
+| `load_model(model = "ensemble", architecture = NULL, compile = TRUE)` | Load a bundled architecture, native RDS model; return a native `radar_model`. Existing `radar_model` objects are accepted. |
+| `train(data = NULL, model = "ensemble", init = NULL, save_to = NULL, ...)` | Train from fresh weights or fine-tune a model; return the updated `radar_model`, including history and training provenance. Retain this returned value. |
+| `generate(n, length = 1024, ...)` | Alias of `generate_dataset()`; return a `synthetic_dataset` containing inputs and all four true components. |
+| `evaluate(model, dataset, statistics = FALSE, normalize = FALSE, batch_size = 32)` | Evaluate a synthetic dataset or saved dataset file and return per-component metric lists; `statistics = TRUE` selects population summaries. |
+
+## Model, file and object helpers
+
+| Public R export | Purpose |
+|---|---|
+| `build_model(architecture = "ensemble", ...)` | Construct an initialized native network with a chosen architecture and hyperparameters. |
+| `build_standard_model(...)` | Construct the single-stage standard architecture. |
+| `build_ensemble_model(...)` | Construct the two-stage ensemble architecture. |
+| `new_model(architecture = "ensemble", ...)` | Convenience entry point to `build_model()`. |
+| `compile_model(model, architecture = model$architecture, learning_rate = 1e-5)` | Validate the architecture and configure the model's learning-rate setting. |
+| `load_pretrained(architecture = "ensemble")` | Load one of the two bundled pretrained models. |
+| `save_model(model, path, overwrite = TRUE)` | Save a native `.rds` model, weights, history and provenance. |
+| `model_info(model = "ensemble", show = FALSE)` | Inspect architecture, hyperparameters, parameter count, origin, training details, saved software versions and format information. |
+| `read_spectra(path, ...)` | Alias of `read()`. |
+| `save_spectra(path, spectra, wavenumbers = NULL, names = NULL, ...)` | Save a numeric spectrum or matrix. The path precedes the data in this convenience function. |
+| `save_components(components, path, ...)` | Save a decomposition using a supported spectral format. |
+| `load_components(path, format = NULL, ...)` | Restore all four components, input spectra and supported metadata; locate companion files for single-array formats. |
+| `save_dataset(dataset, path, ...)` | Save synthetic inputs and their targets; append `.npz` when the path has no extension. |
+| `load_dataset(path, format = NULL, ...)` | Restore a `synthetic_dataset` from a multi-array file. |
+| `spectral_data(intensities, ...)` | Construct a spectral record, optionally including named arrays, axes, spectrum names and coordinates. |
+| `SpectralData(intensities, ...)` | Alias of `spectral_data()`, retained as a familiar constructor name. |
+| `radar_components(spectra, baseline, cosmic_rays, noise, peaks, ...)` | Construct a decomposition with matching component shapes. Usually returned by `decompose()`. |
+| `synthetic_dataset(X, baseline, cosmic_rays, noise, peaks, params = list())` | Construct a synthetic dataset from existing input and target matrices. |
+
+## Generation, preprocessing, metrics and display
+
+| Public R export | Purpose and result |
+|---|---|
+| `generate_dataset(n, length = 1024, ...)` | Finite synthetic dataset with generator parameters recorded in `$params`. |
+| `generate_sample(length = 1024, ...)` | One sample as `list(spectrum = ..., targets = ...)`. |
+| `generate_spectrum(length, ...)` | Named list of four unscaled components. |
+| `make_baselines(length, ...)` | Five elementary backgrounds: linear, sinusoidal, polynomial, Gaussian and Lorentzian. |
+| `generate_baseline(length, rng = NULL)` | Random sum of elementary background curves. |
+| `get_random_peak(length = 16, extremity = 0.5, rng = NULL)` | A random Gaussian, Lorentzian or Voigt band. |
+| `generate_peaks(length = 1000, ...)` | A peak-only spectrum normalized to a maximum of at most one. |
+| `generate_cosmic_rays(length = 1000, max_num = 30, rng = NULL)` | Single-channel spikes. |
+| `generate_noise(length = 1000, scaling_factor = 0.1, rng = NULL)` | White Gaussian noise with zero endpoints. |
+| `train_test_datasets(n_train, n_test, length = 1024, seed = 0, ...)` | Named list with independent `$train` and `$test` datasets. |
+| `batch_generator(length = 750, batch_size = 100, ...)` | Return a closure; each call creates the next batch with `$X`, `$targets` and `$dataset`. |
+| `as_training_data(x)` | Convert a synthetic dataset to `list(X = ..., targets = ...)`; `X` has dimensions `n × length × 1`. |
+| `minmax_normalize(spectra)` | Return `$normalized` and `$scaling`; scaling contains per-spectrum `$offset` and `$scale`. |
+| `denormalize_components(components, scaling)` | Restore intensity units; restore the offset to baseline only. |
+| `rmse(y_true, y_pred, axis = -1)` | Per-spectrum root mean squared errors. |
+| `mae(y_true, y_pred, axis = -1)` | Per-spectrum mean absolute errors. |
+| `max_error(y_true, y_pred, axis = -1)` | Per-spectrum maximum absolute errors. |
+| `r2(y_true, y_pred, axis = -1, eps = 1e-12)` | Per-spectrum coefficients of determination; constant targets give `NaN`. |
+| `per_spectrum_errors(truth, prediction)` | Nested component lists of per-spectrum RMSE, MAE and maximum error. |
+| `evaluate_components(truth, prediction)` | Component summaries: average per-spectrum errors and pooled R squared. |
+| `error_statistics(truth, prediction)` | Mean, median and population variance of per-spectrum RMSE and maximum error. |
+| `snr(signal, noise, predicted_noise = 0, eps = 1e-4)` | Mean signal divided by the population standard deviation of residual noise, with stabilizer. |
+| `root_mean_squared_error(y_true, y_pred)` | Scalar neural-network RMSE loss over all supplied values. |
+| `r_square(y_true, y_pred)` | Pooled neural-network R squared using the training epsilon. |
+| `r_square_loss(y_true, y_pred)` | The training loss `1 - R squared`. |
+| `joined_loss(y_true, y_pred)` | RMSE plus `r_square_loss()`. |
+| `original_learning_rate_schedule(total_steps)` | Return a function of zero-based optimizer step using the original twelve learning-rate levels. |
+| `as_map(x, component = "peaks")` | View a component as `c(map_shape, spectral_length)`; use `component = "spectra"` for a spectral record. |
+| `band_image(x, lo, hi, component = "peaks")` | Trapezoidal band integrals, returned as a vector or spatial map. |
+| `plot_components(components, index = 1, ...)` | Plot the input and its four components in five panels. |
+| `plot_comparison(dataset, components, index = 1, ...)` | Overlay true and predicted components. |
+| `radar_cli(args = commandArgs(trailingOnly = TRUE))` | Run the documented command-line interface from a character argument vector. |
+| `radar_citation()` | Return the method's paper reference as text. |
+| `COMPONENTS` | Character constant `c("baseline", "cosmic_rays", "noise", "peaks")`; model output order. |
+| `ORIGINAL_LR_VALUES` | Numeric constant containing the original twelve learning-rate levels. |
+
+For matrix error metrics, the default `axis = -1` reduces the final, spectral
+axis. Other explicit axis numbers follow R's one-based axis convention;
+`axis = NULL` pools all values. The scalar training losses are distinct from
+the per-spectrum metrics. See the training and evaluation sections for their
+formulas and intended uses.
+
+
+# Reproducibility and computational limits
+
+Seeded generator calls restore the caller's random state. Each seeded stream
+maintains its own state. Model initialization and training have their own
+seed arguments. Save model objects and generation parameters with results.
+
+Consistent scaling is the default. With `legacy_scaling=TRUE` and
+`increase_noise=FALSE`, component targets are scaled by the mixture maximum
+while the input mixture remains unscaled. This recreates the training-input
+scaling used for the bundled pretrained models. With amplified noise, the
+input and targets remain consistently scaled. Zero mixtures are redrawn;
+very short degenerate Lorentzian bands use a flat unit band.
+
+Computation is CPU based. Prediction processes each spectrum individually;
+`batch_size` is validated but does not enable parallel inference. Large
+training batches materialize large convolution patches. Start with small
+batches and short runs, then measure memory and elapsed time for your data.
+No measured throughput or full training duration is promised.
+
+# Example data and regression checks
+
+```{r bundled-data}
+example_path <- system.file("extdata", "synthetic_spectra.csv", package="RADAR")
+example_spectra <- RADAR::read(example_path)
+example_truth <- load_dataset(system.file("extdata", "synthetic_spectra_truth.rds",
+                                         package="RADAR"))
+dim(example_truth$X)
+```
+
+The five example spectra have 1,024 points, with an axis from 400 to 1,800
+inverse centimetres. CSV intensities equal `4000 * example_truth$X + 600`.
+Compare predictions with targets on the same intensity scale:
+
+```{r bundled-evaluation}
+example_prediction <- RADAR::decompose(example_truth$X, model="standard",
+                                       normalize=FALSE)
+evaluate_components(example_truth, example_prediction)$peaks
+```
+
+The package contains fixed numerical regression fixtures. Tests also cover
+finite-difference gradients, decreasing training loss, RDS model round trips,
+normalization, maps, file round trips, array order and integer boundaries.
+Vendor-file fixtures are synthetic; unusual instrument variants need checking.
+
+# Troubleshooting and practical guidance
+
+| Symptom | Action |
+|---|---|
+| Missing optional package | Install the dependency reported by `formats()`. |
+| Wrong text orientation or axis | Specify `layout`, `delimiter`, `decimal` or `wavenumbers` explicitly. |
+| Ambiguous container | Specify the array key, sheet or SQL query. |
+| Model file rejected | Use a saved native RADAR `.rds` model and check the requested architecture. |
+| Missing map dimensions | Supply `map_shape` and positions where available. |
+| Narrow peaks lost | Check how many spectral samples span a band; consider resampling or fine-tuning. |
+| Broad peaks mistaken for background | Inspect the baseline and compare representative reference spectra. |
+| Strong spikes dominate normalization | Inspect the raw spectrum and decomposition; choose preprocessing for the measurement. |
+| Large reconstruction residual | The ensemble predicts four components independently. Inspect residuals before downstream analysis. |
+| Out-of-memory training | Reduce batch size, spectral length or network size. |
+| Slow inference | Time a small representative sample and process large collections in chunks. |
+| Archive writing fails | Ensure a system zip utility is available for NPZ output, or use RDS. |
+| Vignette fails to build | Install knitr, rmarkdown and Pandoc; use the prebuilt HTML when reading only. |
+
+Networks are trained on synthetic shapes. Accuracy depends on sampling, band
+widths, baseline structure and noise. Retain the measured axis and units and
+inspect representative results. A nonnegative predicted peak does not itself
+establish a chemical assignment or detection limit.
+
+# Authors, license and citation
+
+Joel Sjöberg contributed the scientific algorithms, network architectures and
+pretrained weights. Bogdan Oancea developed the RADAR R package. The package
+is distributed under the BSD 3-Clause license, with copyright notices and
+conditions in `LICENSE`.
+
+The scientific method is described by Sjöberg, Siminea, Păun, Lita, Larion and
+Petre (2025), *RADAR: Raman Spectral Analysis Using Deep Learning for Artifact
+Removal*, Advanced Optical Materials, 2500736, DOI: 10.1002/adom.202500736.
+Use `citation("RADAR")` for the formatted reference.
+
+# Release 0.1.0
+
+This release includes both pretrained architectures, native R training and
+differentiation, synthetic generation, evaluation, spectral file adapters,
+map operations, an Rscript interface and the complete guide.

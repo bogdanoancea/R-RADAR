@@ -1,0 +1,246 @@
+---
+title: "RADAR network architectures"
+author: "Bogdan Oancea"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
+vignette: >
+  %\VignetteIndexEntry{RADAR network architectures}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse=TRUE, comment="#>", fig.width=8, fig.height=5,
+                     message=FALSE, warning=TRUE)
+library(RADAR)
+```
+
+# Architecture, weights and training
+
+RADAR implements Joel Sjöberg's **standard** and **ensemble** neural-network
+architectures. An architecture specifies the layers and how signals pass
+between them. The weights are numerical coefficients learned during training.
+Both pretrained models are included in the package as native R objects.
+
+`train()` updates weights within the selected architecture. New training data
+do not change its wiring. Starting from random weights trains a new model;
+starting from bundled weights fine-tunes an existing model. All layers are
+trainable; there is no layer-freezing option in the current interface.
+
+| Property | Standard | Ensemble |
+|---|---|---|
+| Stages | One | Two connected stages |
+| Hidden channels, `scaler` | 20 | 10 per stage |
+| Key dimension, `dim_red_size` | 256 | 144 per stage |
+| Stored numerical parameters | 585,299 | 280,592 |
+| Directly predicted components | Baseline, cosmic rays, peaks | Baseline, cosmic rays, peaks, noise |
+| Noise | Input minus the other three components | Learned signed output |
+| Component loss | RMSE | RMSE + (1 - R squared) |
+| Exact additive reconstruction | Yes, within numerical precision | Not enforced |
+
+The stored parameter count includes batch-normalization moving means and
+variances, which are updated as statistics rather than by gradient descent.
+The ensemble has fewer parameters despite having two stages because its
+stages use fewer channels and smaller key dimensions. It is a connected
+network, not an average of several independently trained models.
+
+# Input and shared processing block
+
+Let `B` be the batch size, `L` the number of spectral points, `C` the hidden
+channel count and `D` the key dimension. The input is `B x L x 1`. User-facing
+matrices have spectra in rows and points in columns. Each output is a
+`B x L` matrix. The model uses point indices; the wavenumber axis is retained
+as metadata but is not a network input. Spectral length is preserved.
+
+`decompose()` normally scales each input spectrum to `[0, 1]`, then restores
+intensity units after prediction. `predict(model, X)` and `train()` do not
+apply that high-level normalization automatically. Training inputs and known
+component targets must use compatible scales.
+
+Each stage uses the following processing block:
+
+| Step | Operation | Output shape |
+|---|---|---|
+| Encoder | Conv1D, kernel 128, 1 to C channels; batch normalization; LeakyReLU | B x L x C |
+| Key features | Conv1D, kernel 64, C to D channels; linear activation | B x L x D |
+| Global key | Maximum over the spectral dimension | B x D |
+| Context map | Outer product of the stage input spectrum and its key | B x L x D x 1 |
+| Context convolution 1 | Conv2D, kernel 32 x floor(D/10), stride 1 x sqrt(D), 1 to C channels; batch normalization; LeakyReLU | B x L x sqrt(D) x C |
+| Context convolution 2 | Conv2D, kernel 16 x floor(D/10), stride 1 x sqrt(D), C to C channels | B x L x 1 x C |
+| Feature preparation | Batch normalization; LeakyReLU; reshape | B x L x C |
+| Decoder 1 | Conv1D, kernel 128, C to C channels; batch normalization; LeakyReLU | B x L x C |
+| Decoder 2 | Conv1D, kernel 64, C to C channels; batch normalization; LeakyReLU | B x L x C |
+
+For the ensemble's second stage, the residual feature addition described below
+occurs immediately before feature preparation. The stages have separate weights.
+
+The learned key summarizes the entire spectrum. Its outer product with the
+stage input gives local processing access to global spectral context. This
+block does not use a softmax query/key/value attention operation.
+
+# Standard architecture
+
+The shared processing block feeds three output heads. Noise is calculated
+by subtraction, so the four components reconstruct the input.
+
+```{r diagram-functions, include=FALSE}
+box <- function(x, y, label, w=.26, h=.13, fill="#EAF2F8") {
+  rect(x-w/2, y-h/2, x+w/2, y+h/2, col=fill, border="#36546B")
+  text(x, y, label, cex=.78)
+}
+edge <- function(x1,y1,x2,y2) arrows(x1,y1,x2,y2,length=.07,col="#36546B")
+canvas <- function() {
+  par(mar=c(0,0,0,0))
+  plot.new(); plot.window(xlim=c(0,1), ylim=c(0,1), xaxs="i", yaxs="i")
+}
+```
+
+```{r standard-diagram, echo=FALSE, fig.cap="Standard model: three learned components and residual noise."}
+canvas()
+box(.5,.91,"Input spectrum X")
+box(.5,.69,"Encoder + context block\n+ decoder",w=.42,h=.16)
+edge(.5,.845,.5,.77)
+for (x in c(.17,.5,.83)) edge(.5,.61,x,.435)
+box(.17,.37,"Baseline B")
+box(.5,.37,"Cosmic rays C")
+box(.83,.37,"Peaks P")
+box(.5,.12,"Noise N = X - B - C - P",w=.52)
+for (x in c(.17,.5,.83)) edge(x,.305,.5,.185)
+```
+
+| Head | Exact order of operations |
+|---|---|
+| Baseline | Conv1D(64, C to 1), ReLU, average pool(33), ReLU |
+| Cosmic rays | Conv1D(3, C to 1), ReLU |
+| Peaks | Conv1D(8, C to 1), ReLU, average pool(4), ReLU |
+| Noise | X - baseline - cosmic rays - peaks |
+
+Baseline, cosmic rays and peaks are nonnegative on the network's intensity
+scale. Noise can be positive or negative. Restoring a negative input offset
+to baseline can make the baseline negative in the measured intensity units.
+Exact reconstruction is an algebraic property; it does not guarantee correct
+assignment of each signal feature to a component.
+
+# Ensemble architecture
+
+Stage 1 estimates baseline and cosmic rays. Stage 2 processes the reduced
+spectrum `X - baseline - cosmic_rays` to estimate peaks and noise. In addition,
+stage 1 passes a feature tensor to stage 2 through a residual connection.
+
+```{r ensemble-diagram, echo=FALSE, fig.height=6, fig.cap="Ensemble model: sequential decomposition with a feature residual connection."}
+canvas()
+box(.35,.94,"Input spectrum X",w=.35,h=.08)
+box(.35,.81,"Stage 1: encoder + context\n+ decoder",w=.46,h=.12)
+edge(.35,.90,.35,.87)
+box(.79,.66,"Baseline B\nCosmic rays C",w=.32,h=.12)
+edge(.50,.75,.70,.72)
+box(.35,.60,"Reduced spectrum\nX - B - C",w=.40,h=.12)
+edge(.35,.75,.35,.66); edge(.63,.66,.55,.60)
+box(.35,.38,"Stage 2: encoder + context\n+ residual + decoder",w=.50,h=.16)
+edge(.35,.54,.35,.46)
+segments(.12,.81,.055,.81,col="#36546B")
+segments(.055,.81,.055,.38,col="#36546B")
+edge(.055,.38,.10,.38)
+text(.075,.59,"Feature skip",srt=90,cex=.7,pos=3)
+box(.23,.12,"Peaks P",w=.26)
+box(.65,.12,"Noise N",w=.26)
+edge(.28,.30,.23,.185); edge(.48,.30,.65,.185)
+```
+
+The feature skip takes stage 1's **second Conv2D output before batch
+normalization and activation**, shape `B x L x 1 x C`. It is added to stage
+2's second Conv2D output, before that stage's batch normalization and
+LeakyReLU. It is a feature addition, separate from the spectrum subtraction.
+
+| Stage and head | Exact order of operations |
+|---|---|
+| Stage 1 baseline | Conv1D(64, C to 1), average pool(33), ReLU |
+| Stage 1 cosmic rays | Conv1D(3, C to 1), ReLU |
+| Stage 2 peaks | Conv1D(8, C to 1), average pool(4), ReLU |
+| Stage 2 noise | Conv1D(1, C to 1), tanh |
+
+Unlike the standard heads, ensemble baseline and peaks do not apply ReLU
+before pooling. The noise head is bounded to `[-1, 1]` in network units.
+All four outputs are predicted; their sum is not constrained to equal the
+input. Inspect `$residual` when assessing a decomposition.
+
+# Padding, activation and normalization details
+
+All Conv1D operations have stride one. They repeat boundary values before
+applying the kernel. For kernel width `k`, padding is `floor(k/2)` on the
+left and `floor(k/2) - 1 + k %% 2` on the right. Average pooling uses the
+same boundary extension and stride one. Even windows are therefore asymmetric.
+
+Conv2D operations use zero padding to preserve spectral length and yield the
+ceiling of the input size divided by the stride along the key dimension.
+For standard, the key dimension shrinks `256 -> 16 -> 1`; for ensemble it
+shrinks `144 -> 12 -> 1`. The respective key-axis kernel widths are 25 and 14.
+
+Hidden activations are LeakyReLU with negative slope 0.3. Batch normalization
+uses epsilon 0.001 and moving-statistic coefficient 0.99. Training computes
+batch/spatial statistics; inference uses stored moving means and variances.
+
+# What training changes
+
+Both architectures use reverse-mode differentiation and Adam. The standard
+loss sums component RMSEs; the ensemble sums RMSE plus `1 - R_squared` for
+each component. Regularization is added to those losses. Hidden kernels use
+`l1_param` and `l2_param`, both 1e-6 by default. Head kernels use a fixed L1 coefficient of 1e-5. All convolution kernels,
+biases and activities use `l2_param` for L2 regularization (1e-6 by default).
+
+Training adjusts convolution kernels, biases, and batch-normalization scale
+and shift. Moving means and variances are updated separately. The standard
+noise loss also influences its three learned heads through the subtraction.
+In the ensemble, gradients propagate through the reduced spectrum and the
+feature residual connection into the first stage.
+
+```{r training-choices, eval=FALSE}
+# Train the standard architecture from random weights.
+fresh <- train(training_data, model="standard", epochs=2,
+               learning_rate=1e-5)
+
+# Fine-tune the bundled standard model on new examples with known targets.
+adapted <- train(training_data, model="standard", init="pretrained",
+                 epochs=2, learning_rate=1e-6)
+
+# Construct a smaller network for experiments; it needs its own trained weights.
+small <- new_model("standard", scaler=2, dim_red_size=16, seed=7)
+small <- train(training_data, model=small, epochs=2, learning_rate=1e-5)
+```
+
+Changing `scaler` or `dim_red_size` changes parameter shapes. The bundled
+weights fit the default architectures only. `dim_red_size` must be a perfect
+square of at least 16. Network design and weights determine the learned
+behavior; the presence of four outputs alone does not establish accuracy
+on a new instrument or sample type.
+
+# Inspecting a model in R
+
+```{r inspect-architectures}
+standard <- load_model("standard")
+ensemble <- load_model("ensemble")
+data.frame(
+  architecture=c("standard", "ensemble"),
+  channels=c(standard$hyperparameters$scaler, ensemble$hyperparameters$scaler),
+  key_dimension=c(standard$hyperparameters$dim_red_size,
+                  ensemble$hyperparameters$dim_red_size),
+  stored_parameters=c(standard$n_parameters, ensemble$n_parameters)
+)
+names(standard$weights)
+dim(standard$weights$enc_conv1$kernel)  # kernel width, input channels, output channels
+```
+
+`model_info(model)` provides hyperparameters and training information.
+`model$weights` contains the arrays for each named layer. The implementation
+is in `R/models.R`; differentiation and optimization are described by
+`R/models.R` and `R/training.R`. Model persistence uses `save_model()` and
+`load_model()` with RDS files.
+
+# Scientific reference
+
+Sjöberg J, Siminea N, Păun A, Lita A, Larion M, Petre I (2025).
+*RADAR: Raman Spectral Analysis Using Deep Learning for Artifact Removal*.
+Advanced Optical Materials, 2500736. DOI: 10.1002/adom.202500736.
+Use `citation("RADAR")` for the formatted reference.

@@ -1,0 +1,10 @@
+^\.git$
+^\.gitignore$
+^\.github$
+^.*\.Rproj$
+^\.Rproj\.user$
+^CITATION\.cff$
+^AUTHORS\.md$
+^\.DS_Store$
+\.DS_Store$
+^\.Rhistory$

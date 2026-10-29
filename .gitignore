@@ -1,0 +1,27 @@
+# R session / history
+.Rhistory
+.Rapp.history
+.RData
+.Ruserdata
+
+# RStudio
+.Rproj.user/
+
+# Build products
+*.Rcheck/
+*.tar.gz
+*.tgz
+Rplots.pdf
+src/*.o
+src/*.so
+src/*.dll
+
+# Vignettes built by R CMD build (regenerated on build/install)
+inst/doc/
+
+# pkgdown
+docs/
+
+# OS
+.DS_Store
+Thumbs.db
