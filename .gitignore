@@ -16,8 +16,11 @@ src/*.o
 src/*.so
 src/*.dll
 
-# Vignettes built by R CMD build (regenerated on build/install)
+# Vignettes built by R CMD build / devtools::build_vignettes()
 inst/doc/
+doc/
+Meta/
+build/
 
 # pkgdown
 docs/
