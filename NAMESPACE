@@ -73,7 +73,11 @@ export(synthetic_dataset)
 export(train)
 export(train_test_datasets)
 export(write)
-importFrom(stats,predict)
-importFrom(stats,setNames)
-importFrom(utils,head)
-importFrom(utils,tail)
+importFrom(stats,
+  predict,
+  setNames
+)
+importFrom(utils,
+  head,
+  tail
+)

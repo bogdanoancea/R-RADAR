@@ -116,10 +116,15 @@ band_image(map, 900, 1100)      # integrated Raman band, 2 x 3
 The last array dimension is spectral. Spatial axes follow R's usual
 column-major array order. Indices are one-based.
 
-Core formats include CSV/TSV/text, RDS, SPC, JCAMP-DX, MATLAB and NumPy numeric
-files. Optional packages add JSON (`jsonlite`), HDF5/NetCDF-4 (`hdf5r`), SQLite
-(`DBI`, `RSQLite`), Excel (`readxl`, `openxlsx`), Parquet/Feather (`arrow`) and
-vendor XML (`xml2`). Renishaw WDF is read natively. Use `formats()` for the
+Core formats, which need no packages beyond R itself, are CSV/TSV/text, RRUFF
+text, RDS, SPC, JCAMP-DX, NumPy `.npy` arrays and Renishaw WDF (read only).
+
+Optional packages add JSON, NumPy `.npz` archives and MATLAB `.mat`
+(`jsonlite`), HDF5/NetCDF-4 (`hdf5r`), SQLite (`DBI`, `RSQLite`), Excel
+(`readxl` to read, `openxlsx` to write), Parquet and Feather (`arrow`) and
+vendor XML from Horiba LabSpec and Princeton TriVista (`xml2`). `jsonlite`
+carries the metadata sidecar that every other optional adapter writes, so it is
+needed by all of them. Use `formats()` for the
 capabilities and dependencies of each adapter. The vignette describes format limitations.
 
 ## Models, training and evaluation
