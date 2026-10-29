@@ -9,3 +9,5 @@
 \.DS_Store$
 ^\.Rhistory$
 ^LICENSE\.md$
+^doc$
+^Meta$
