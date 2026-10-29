@@ -10,6 +10,14 @@ Decompose Raman spectra into baseline, cosmic rays, noise and peaks using
 the pretrained standard and ensemble networks. Network inference, training,
 synthetic spectra and evaluation are implemented in R.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/bogdanoancea/R-RADAR}
+  \item Report bugs at \url{https://github.com/bogdanoancea/R-RADAR/issues}
+}
+
+}
 \author{
 \strong{Maintainer}: Bogdan Oancea \email{bogdan.oancea@gmail.com}
 
