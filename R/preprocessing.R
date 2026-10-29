@@ -5,6 +5,13 @@
 #' @param spectra Numeric matrix, one spectrum per row.
 #' @return A list with normalized spectra and affine scaling parameters.
 #' @export
+#' @examples
+#' spectra <- matrix(c(1, 2, 3, 10, 20, 30), nrow = 2, byrow = TRUE)
+#' scaled <- minmax_normalize(spectra)
+#' scaled$normalized
+#'
+#' # The per-spectrum offset and scale needed to restore original units.
+#' str(scaled$scaling)
 minmax_normalize <- function(spectra) {
   if (!is.matrix(spectra) || !is.numeric(spectra) || !nrow(spectra) || !ncol(spectra) || any(!is.finite(spectra)))
     stop("spectra must be a non-empty finite numeric matrix", call. = FALSE)

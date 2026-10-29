@@ -23,3 +23,10 @@ A spectral_data record.
 \description{
 Read spectra from a file
 }
+\examples{
+path <- system.file("extdata", "synthetic_spectra.csv", package = "RADAR")
+data <- read(path)
+data
+dim(data$intensities)
+head(data$wavenumbers)
+}

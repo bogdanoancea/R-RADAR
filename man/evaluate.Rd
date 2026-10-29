@@ -30,3 +30,13 @@ Named lists of error metrics for each component.
 \description{
 Evaluate a model on spectra with known components
 }
+\examples{
+dataset <- generate(2, length = 128, seed = 7)
+
+# A bundled model may be named rather than loaded first.
+scores <- evaluate("standard", dataset)
+scores$peaks
+
+# Per-component error statistics instead of one score each.
+evaluate("standard", dataset, statistics = TRUE)
+}

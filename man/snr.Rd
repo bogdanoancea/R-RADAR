@@ -21,3 +21,13 @@ Mean signal divided by population noise standard deviation.
 \description{
 Spectral signal-to-noise ratio
 }
+\examples{
+set.seed(1)
+
+signal <- matrix(sin(seq(0, 6, length.out = 64)), nrow = 1)
+noise <- matrix(rnorm(64, sd = 0.05), nrow = 1)
+snr(signal, noise)
+
+# Supplying a noise estimate scores a denoising result.
+snr(signal, noise, predicted_noise = noise * 0.9)
+}

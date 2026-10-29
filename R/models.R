@@ -328,6 +328,15 @@ compile_model <- function(model, architecture = model$architecture, learning_rat
 #' @param ... Reserved for future use.
 #' @return Named list of four spectra-by-points matrices in network units.
 #' @export
+#' @examples
+#' model <- load_model("standard")
+#' dataset <- generate(2, length = 128, seed = 7)
+#'
+#' # Inputs are expected on the normalized scale here; decompose() is the
+#' # higher-level entry point that normalizes and restores units for you.
+#' parts <- predict(model, dataset$X)
+#' names(parts)
+#' str(parts$peaks)
 predict.radar_model <- function(object, newdata, batch_size = 32L, verbose = 0L, ...) {
   if (is.null(dim(newdata))) newdata <- matrix(newdata, 1L)
   if (length(dim(newdata)) == 3L && dim(newdata)[3L] == 1L)
@@ -364,6 +373,12 @@ print.radar_model <- function(x, ...) {
 #' @param compile Whether to configure the default optimizer when loading.
 #' @return A native `radar_model`.
 #' @export
+#' @examples
+#' # A bundled architecture by name; load_pretrained() is the same call
+#' # restricted to the bundled names.
+#' model <- load_model("standard")
+#' model
+#' model_info(model)
 load_model <- function(model = "ensemble", architecture = NULL, compile = TRUE) {
   if (inherits(model, "radar_model")) {
     if (!is.null(architecture) && !identical(architecture, model$architecture))
@@ -393,6 +408,14 @@ load_pretrained <- function(architecture = "ensemble") load_model(match.arg(arch
 #' @param overwrite Replace an existing file.
 #' @return `path`, invisibly.
 #' @export
+#' @examples
+#' model <- load_model("standard")
+#'
+#' path <- file.path(tempdir(), "radar-model.rds")
+#' save_model(model, path)
+#' restored <- load_model(path)
+#' identical(class(restored), class(model))
+#' unlink(path)
 save_model <- function(model, path, overwrite = TRUE) {
   if (!inherits(model, "radar_model")) stop("Expected a radar_model.", call. = FALSE)
   if (!grepl("\\.rds$", path, ignore.case = TRUE))
@@ -408,6 +431,13 @@ save_model <- function(model, path, overwrite = TRUE) {
 #' @param show Print a readable summary.
 #' @return A list describing the model and its training.
 #' @export
+#' @examples
+#' # Accepts a bundled name or a radar_model object.
+#' info <- model_info("standard")
+#' str(info, max.level = 1)
+#'
+#' # Printed summary instead of a returned list.
+#' model_info("ensemble", show = TRUE)
 model_info <- function(model = "ensemble", show = FALSE) {
   m <- load_model(model, compile = FALSE)
   ans <- m[c("architecture", "hyperparameters", "n_parameters", "origin", "training", "saved_with", "date_saved", "backend", "format_version")]

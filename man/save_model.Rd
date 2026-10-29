@@ -19,3 +19,12 @@ save_model(model, path, overwrite = TRUE)
 \description{
 Save a native R RADAR model
 }
+\examples{
+model <- load_model("standard")
+
+path <- file.path(tempdir(), "radar-model.rds")
+save_model(model, path)
+restored <- load_model(path)
+identical(class(restored), class(model))
+unlink(path)
+}

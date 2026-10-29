@@ -17,3 +17,11 @@ A list describing the model and its training.
 \description{
 Inspect a model's architecture and provenance
 }
+\examples{
+# Accepts a bundled name or a radar_model object.
+info <- model_info("standard")
+str(info, max.level = 1)
+
+# Printed summary instead of a returned list.
+model_info("ensemble", show = TRUE)
+}

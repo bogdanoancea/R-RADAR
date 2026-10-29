@@ -25,3 +25,10 @@ Load pretrained or saved native R model weights
 \details{
 Pretrained models and weights are bundled as native R objects.
 }
+\examples{
+# A bundled architecture by name; load_pretrained() is the same call
+# restricted to the bundled names.
+model <- load_model("standard")
+model
+model_info(model)
+}

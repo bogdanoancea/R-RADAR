@@ -21,3 +21,10 @@ Invisibly, the predicted components.
 \description{
 Compare predicted and true spectral components
 }
+\examples{
+dataset <- generate(2, length = 128, seed = 7)
+parts <- decompose(dataset$X, model = "standard")
+
+# Known components against the predicted ones.
+plot_comparison(dataset, parts, index = 1)
+}

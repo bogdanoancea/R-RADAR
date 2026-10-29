@@ -15,3 +15,11 @@ A data frame with extensions, capabilities and optional R packages.
 \description{
 List supported spectral file formats
 }
+\examples{
+# Every adapter, with the optional package each one needs.
+caps <- formats()
+head(caps)
+
+# Printed summary instead of a returned value.
+formats(show = TRUE)
+}

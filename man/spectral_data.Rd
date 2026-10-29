@@ -61,3 +61,14 @@ A spectral_data S3 object; each matrix has one spectrum per row.
 \description{
 Create a spectral data record
 }
+\examples{
+set.seed(1)
+
+# Two spectra sharing one axis.
+obj <- spectral_data(matrix(runif(2 * 16), nrow = 2),
+                     wavenumbers = seq(400, 1800, length.out = 16),
+                     names = c("a", "b"),
+                     x_units = "cm-1", y_units = "counts")
+obj
+dim(obj$intensities)
+}

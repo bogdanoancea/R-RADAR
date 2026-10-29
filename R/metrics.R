@@ -22,6 +22,10 @@
 #' @param eps Threshold below which a constant target has undefined R squared.
 #' @return Numeric error values, one per spectrum by default.
 #' @export
+#' @examples
+#' truth <- matrix(c(1, 2, 3, 4), nrow = 2)
+#' estimate <- truth + 0.1
+#' rmse(truth, estimate)
 rmse <- function(y_true, y_pred, axis = -1L) {
   .metric_pair(y_true, y_pred)
   sqrt(.metric_reduce((y_pred-y_true)^2, axis, mean))
@@ -51,6 +55,15 @@ r2 <- function(y_true, y_pred, axis = -1L, eps = 1e-12) {
 #' @param truth,prediction Lists or RADAR objects containing all four components.
 #' @return A nested named list of errors or summary statistics.
 #' @export
+#' @examples
+#' dataset <- generate(2, length = 128, seed = 7)
+#' parts <- decompose(dataset$X, model = "standard")
+#'
+#' # One error per spectrum, for each component.
+#' per_spectrum_errors(dataset, parts)
+#'
+#' # evaluate_components() is the same function under its other name.
+#' evaluate_components(dataset, parts)
 per_spectrum_errors <- function(truth, prediction) {
   out <- lapply(COMPONENTS, function(c) {
     t <- .radar_matrix(truth[[c]], c); p <- .radar_matrix(prediction[[c]], c)
@@ -87,6 +100,15 @@ evaluate_components <- function(truth, prediction) {
 #' @param eps Positive stabilizing constant.
 #' @return Mean signal divided by population noise standard deviation.
 #' @export
+#' @examples
+#' set.seed(1)
+#'
+#' signal <- matrix(sin(seq(0, 6, length.out = 64)), nrow = 1)
+#' noise <- matrix(rnorm(64, sd = 0.05), nrow = 1)
+#' snr(signal, noise)
+#'
+#' # Supplying a noise estimate scores a denoising result.
+#' snr(signal, noise, predicted_noise = noise * 0.9)
 snr <- function(signal, noise, predicted_noise = 0, eps = 1e-4) {
   residual <- as.numeric(noise-predicted_noise)
   mean(signal)/(sqrt(mean((residual-mean(residual))^2))+eps)

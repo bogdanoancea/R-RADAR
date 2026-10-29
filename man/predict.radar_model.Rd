@@ -24,3 +24,13 @@ Named list of four spectra-by-points matrices in network units.
 \description{
 Predict normalized spectral components
 }
+\examples{
+model <- load_model("standard")
+dataset <- generate(2, length = 128, seed = 7)
+
+# Inputs are expected on the normalized scale here; decompose() is the
+# higher-level entry point that normalizes and restores units for you.
+parts <- predict(model, dataset$X)
+names(parts)
+str(parts$peaks)
+}

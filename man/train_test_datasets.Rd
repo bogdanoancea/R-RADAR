@@ -28,3 +28,9 @@ Named list with train and test datasets.
 \description{
 Generate independent training and test datasets
 }
+\examples{
+sets <- train_test_datasets(4, 2, length = 64, seed = 3)
+sets[[1]]
+dim(sets[[1]]$X)
+dim(sets[[2]]$X)
+}
