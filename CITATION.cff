@@ -1,8 +1,24 @@
 cff-version: 1.2.0
-message: "If you use RADAR, please cite the paper below."
-title: "RADAR: Raman spectral Analysis using Deep learning for Artifact Removal (R package)"
+message: "If you use radar.raman, please cite the paper below."
+type: software
+title: "radar.raman: Raman Spectral Analysis Using Deep Learning for Artifact Removal"
+abstract: "An R implementation of the RADAR method. Decomposes Raman spectra into
+  baseline, cosmic rays, noise and Raman peaks using bundled pretrained standard and
+  ensemble convolutional networks. Neural network inference, automatic
+  differentiation, training, synthetic data generation, evaluation and spectral file
+  conversion are implemented entirely in R."
 version: 0.1.0
 license: BSD-3-Clause
+repository-code: "https://github.com/bogdanoancea/R-RADAR"
+keywords:
+  - Raman spectroscopy
+  - spectral decomposition
+  - baseline correction
+  - cosmic ray removal
+  - denoising
+  - deep learning
+  - convolutional neural network
+  - R
 authors:
   - family-names: Sjöberg
     given-names: Joel
