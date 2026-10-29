@@ -23,6 +23,7 @@ Useful links:
 
 Authors:
 \itemize{
+  \item Bogdan Oancea \email{bogdan.oancea@gmail.com}
   \item Joel Sjöberg \email{joelsjoberg3@gmail.com} (Original algorithms, neural networks and pretrained weights)
 }
 

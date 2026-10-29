@@ -24,5 +24,5 @@ Suggests: jsonlite, hdf5r, DBI, RSQLite, readxl, openxlsx, arrow, xml2,
 VignetteBuilder: knitr
 NeedsCompilation: no
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
 Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.1
