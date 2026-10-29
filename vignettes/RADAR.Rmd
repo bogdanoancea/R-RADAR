@@ -15,7 +15,7 @@ vignette: >
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(collapse=TRUE, comment="#>", fig.width=7, fig.height=7,
                      message=FALSE, warning=TRUE, error=FALSE)
-library(RADAR)
+library(radar.raman)
 ```
 
 # Overview and installation
@@ -32,36 +32,36 @@ packages. Optional packages support particular file formats, as listed below.
 Install a source archive using:
 
 ```{r installation, eval=FALSE}
-install.packages("RADAR_0.1.0.tar.gz", repos=NULL, type="source")
-library(RADAR)
-vignette("RADAR", package="RADAR")
+install.packages("radar.raman_0.1.0.tar.gz", repos=NULL, type="source")
+library(radar.raman)
+vignette("RADAR", package="radar.raman")
 ```
 
 To build documentation from source, install knitr, rmarkdown and Pandoc.
-Run `R CMD build RADAR`, then `R CMD check --no-manual RADAR_0.1.0.tar.gz`.
+Run `R CMD build RADAR`, then `R CMD check --no-manual radar.raman_0.1.0.tar.gz`.
 The distributed archive includes a rendered guide.
 
 # Quick start
 
 ```{r quick-start}
 sample_data <- generate(2, length=128, seed=7)
-parts <- RADAR::decompose(sample_data$X, model="standard")
+parts <- radar.raman::decompose(sample_data$X, model="standard")
 names(as.list(parts))
 plot(parts, index=1)
 ```
 
 Rows of a matrix are spectra and columns are spectral points. A vector is one
 spectrum. The last dimension of a map array is spectral. R indices start at one.
-Use `RADAR::decompose()` and `RADAR::write()` to avoid conflicts with similarly
+Use `radar.raman::decompose()` and `radar.raman::write()` to avoid conflicts with similarly
 named functions in other packages. `$peaks` holds corrected Raman bands.
 Input intensities are normalized per spectrum; output uses input intensity
 units by default. Inspect decompositions before downstream interpretation.
 
 # Reading spectra and choosing a file format
 
-`RADAR::read()` chooses a reader from the extension. `read_spectra()` is an
+`radar.raman::read()` chooses a reader from the extension. `read_spectra()` is an
 alias. Set `format` when an extension is missing, ambiguous or misleading.
-`RADAR::write()` similarly chooses an output format; it accepts spectral
+`radar.raman::write()` similarly chooses an output format; it accepts spectral
 records, plain numeric arrays, decompositions and synthetic datasets. Explicit
 namespacing distinguishes these functions from base R's `read` and `write`.
 
@@ -85,8 +85,8 @@ files_data <- spectral_data(
   meta = list(instrument = "vignette example")
 )
 files_csv <- file.path(files_dir, "spectra.csv")
-RADAR::write(files_data, files_csv)
-files_back <- RADAR::read(files_csv)
+radar.raman::write(files_data, files_csv)
+files_back <- radar.raman::read(files_csv)
 print(files_back)
 stopifnot(isTRUE(all.equal(files_back$intensities, files_X,
                           check.attributes = FALSE)))
@@ -170,15 +170,15 @@ being silently interpolated onto a shared grid.
 
 ```{r files-table-layouts}
 files_wide <- file.path(files_dir, "wide.csv")
-RADAR::write(files_X, files_wide, wavenumbers = files_axis,
+radar.raman::write(files_X, files_wide, wavenumbers = files_axis,
              names = files_data$names, layout = "wide")
-files_wide_back <- RADAR::read(files_wide, layout = "wide")
+files_wide_back <- radar.raman::read(files_wide, layout = "wide")
 
 # A row-oriented export: the first row is the axis.
 files_rows <- file.path(files_dir, "rows.tsv")
 utils::write.table(rbind(files_axis, files_X), files_rows, sep = "\t",
                    row.names = FALSE, col.names = FALSE, quote = FALSE)
-files_rows_back <- RADAR::read(files_rows, layout = "rows")
+files_rows_back <- radar.raman::read(files_rows, layout = "rows")
 
 # The map written above is a tidy table, including spectrum and coordinates.
 head(utils::read.csv(files_csv, check.names = FALSE), 3)
@@ -209,13 +209,13 @@ follows its format: comma for CSV and tab for TSV/text.
 files_eu <- file.path(files_dir, "decimal-comma.csv")
 writeLines(c("Instrument export", "Raman shift;Intensity",
              "100,5;1,25", "101,5;2,25", "102,5;3,25"), files_eu)
-files_eu_back <- RADAR::read(files_eu, delimiter = ";", decimal = ",",
+files_eu_back <- radar.raman::read(files_eu, delimiter = ";", decimal = ",",
                             skip_header = 1)
 files_eu_back$wavenumbers
 files_eu_back$intensities
 
 # Use a tab-separated output when retaining a decimal comma.
-RADAR::write(files_data, file.path(files_dir, "decimal-comma.tsv"),
+radar.raman::write(files_data, file.path(files_dir, "decimal-comma.tsv"),
              decimal = ",", layout = "long")
 ```
 
@@ -224,7 +224,7 @@ A record without a conventional extension can still be read explicitly:
 ```{r files-format-override}
 files_unknown <- file.path(files_dir, "measurement.export")
 file.copy(files_wide, files_unknown)
-files_explicit <- RADAR::read(files_unknown, format = "csv", layout = "wide")
+files_explicit <- radar.raman::read(files_unknown, format = "csv", layout = "wide")
 ```
 
 ## Spectral records, selection and maps
@@ -290,8 +290,8 @@ combined into a matrix.
 if (requireNamespace("hdf5r", quietly = TRUE) &&
     requireNamespace("jsonlite", quietly = TRUE)) {
   files_h5 <- file.path(files_dir, "spectra.h5")
-  RADAR::write(files_data, files_h5)
-  files_h5_back <- RADAR::read(files_h5, key = "intensity")
+  radar.raman::write(files_data, files_h5)
+  files_h5_back <- radar.raman::read(files_h5, key = "intensity")
   stopifnot(identical(dim(files_h5_back$intensities), dim(files_X)))
 }
 ```
@@ -300,13 +300,13 @@ The following examples require your own files and are therefore shown without
 being run:
 
 ```{r files-foreign-containers, eval=FALSE}
-measurement <- RADAR::read("measurement.h5", key = "experiment/spectra")
-measurement <- RADAR::read("measurement.npz", key = "spectra")
-measurement <- RADAR::read("measurement.mat", key = "measurement/spectra")
-measurement <- RADAR::read("measurement.json", key = "intensity")
-measurement <- RADAR::read("workbook.xlsx", sheet = 2)       # R indexing starts at 1
-measurement <- RADAR::read("workbook.xlsx", sheet = "run_A")
-all_sheets <- RADAR::read("workbook.xlsx", sheet = "all")
+measurement <- radar.raman::read("measurement.h5", key = "experiment/spectra")
+measurement <- radar.raman::read("measurement.npz", key = "spectra")
+measurement <- radar.raman::read("measurement.mat", key = "measurement/spectra")
+measurement <- radar.raman::read("measurement.json", key = "intensity")
+measurement <- radar.raman::read("workbook.xlsx", sheet = 2)       # R indexing starts at 1
+measurement <- radar.raman::read("workbook.xlsx", sheet = "run_A")
+all_sheets <- radar.raman::read("workbook.xlsx", sheet = "all")
 names(all_sheets$arrays)
 ```
 
@@ -325,8 +325,8 @@ selecting a long-table subset.
 if (all(vapply(c("DBI", "RSQLite", "jsonlite"), requireNamespace,
                logical(1), quietly = TRUE))) {
   files_db <- file.path(files_dir, "spectra.db")
-  RADAR::write(files_data, files_db)
-  files_one <- RADAR::read(
+  radar.raman::write(files_data, files_db)
+  files_one <- radar.raman::read(
     files_db,
     query = "SELECT * FROM spectra WHERE spectrum = 2 ORDER BY wavenumber"
   )
@@ -360,7 +360,7 @@ large collection.
 
 ```{r decompose-main}
 files_model <- load_model("standard")
-files_components <- RADAR::decompose(files_data, model = files_model)
+files_components <- radar.raman::decompose(files_data, model = files_model)
 files_components
 max(abs(files_components$residual))
 ```
@@ -369,14 +369,14 @@ All the following calls use the same interface. They are shown without
 running extra predictions in this vignette:
 
 ```{r decompose-input-forms, eval=FALSE}
-one <- RADAR::decompose(files_X[1, ], model = files_model,
+one <- radar.raman::decompose(files_X[1, ], model = files_model,
                         wavenumbers = files_axis)
-many <- RADAR::decompose(files_X, model = files_model,
+many <- radar.raman::decompose(files_X, model = files_model,
                          wavenumbers = files_axis)
 cube <- array(files_X, dim = c(2, 2, ncol(files_X)))
-map <- RADAR::decompose(cube, model = files_model, wavenumbers = files_axis)
-from_file <- RADAR::decompose(files_csv, model = files_model, layout = "long")
-written <- RADAR::decompose(files_csv, model = "ensemble",
+map <- radar.raman::decompose(cube, model = files_model, wavenumbers = files_axis)
+from_file <- radar.raman::decompose(files_csv, model = files_model, layout = "long")
+written <- radar.raman::decompose(files_csv, model = "ensemble",
                             output = file.path(files_dir, "components.rds"))
 ```
 
@@ -389,7 +389,7 @@ vectors, or a ragged SPC/JCAMP record, returns a list containing one
 ```{r decompose-ragged, eval=FALSE}
 ragged_spectra <- list(files_X[1, ], files_X[2, 1:48])
 ragged_axes <- list(files_axis, files_axis[1:48])
-ragged_parts <- RADAR::decompose(ragged_spectra, model = files_model,
+ragged_parts <- radar.raman::decompose(ragged_spectra, model = files_model,
                                 wavenumbers = ragged_axes)
 for (i in seq_along(ragged_parts)) {
   save_components(ragged_parts[[i]],
@@ -422,9 +422,9 @@ files_components$meta$scale
 ```
 
 ```{r decompose-normalized, eval=FALSE}
-normalized_parts <- RADAR::decompose(files_X, model = files_model,
+normalized_parts <- radar.raman::decompose(files_X, model = files_model,
                                      units = "normalized")
-already_scaled <- RADAR::decompose(files_scaling$normalized,
+already_scaled <- radar.raman::decompose(files_scaling$normalized,
                                    model = files_model, normalize = FALSE)
 raw_predictions <- predict(files_model, files_scaling$normalized)
 ```
@@ -520,7 +520,7 @@ the truth and prediction use the same intensity scale:
 
 ```{r results-truth-comparison, eval=FALSE}
 test_set <- generate(2, length = 128, seed = 12)
-predicted <- RADAR::decompose(test_set$X, model = files_model,
+predicted <- radar.raman::decompose(test_set$X, model = files_model,
                               normalize = FALSE)
 plot_comparison(test_set, predicted, index = 1)
 ```
@@ -528,7 +528,7 @@ plot_comparison(test_set, predicted, index = 1)
 # Saving decompositions, spectra and datasets
 
 `save_components(result, path)` is the convenience form of
-`RADAR::write(result, path)`. `save_spectra(path, spectra, ...)` uses a
+`radar.raman::write(result, path)`. `save_spectra(path, spectra, ...)` uses a
 path-first argument order; `write(obj, path, ...)` uses the object first.
 `save_dataset()` and `load_dataset()` retain known synthetic targets and
 generation parameters. Omitting a dataset extension appends `.npz`, which
@@ -564,8 +564,8 @@ save_components(files_components, files_result_rds)
 files_reloaded <- load_components(files_result_rds)
 stopifnot(identical(files_reloaded$peaks, files_components$peaks))
 
-RADAR::write(files_components, file.path(files_dir, "components.csv"))
-RADAR::write(files_X, file.path(files_dir, "plain-spectra.csv"),
+radar.raman::write(files_components, file.path(files_dir, "components.csv"))
+radar.raman::write(files_X, file.path(files_dir, "plain-spectra.csv"),
              wavenumbers = files_axis, names = files_data$names)
 files_small_set <- generate(2, length = 32, seed = 7)
 save_dataset(files_small_set, file.path(files_dir, "known-targets.rds"))
@@ -574,17 +574,17 @@ files_restored_set <- load_dataset(file.path(files_dir, "known-targets.rds"))
 
 ```{r files-optional-save}
 if (requireNamespace("jsonlite", quietly = TRUE)) {
-  RADAR::write(files_components, file.path(files_dir, "components.json"))
-  RADAR::write(files_components, file.path(files_dir, "components.npz"))
-  RADAR::write(files_components, file.path(files_dir, "components.mat"))
+  radar.raman::write(files_components, file.path(files_dir, "components.json"))
+  radar.raman::write(files_components, file.path(files_dir, "components.npz"))
+  radar.raman::write(files_components, file.path(files_dir, "components.mat"))
 }
 if (all(vapply(c("openxlsx", "jsonlite"), requireNamespace,
                logical(1), quietly = TRUE))) {
-  RADAR::write(files_components, file.path(files_dir, "components.xlsx"))
+  radar.raman::write(files_components, file.path(files_dir, "components.xlsx"))
 }
 if (all(vapply(c("arrow", "jsonlite"), requireNamespace,
                logical(1), quietly = TRUE))) {
-  RADAR::write(files_small_set, file.path(files_dir, "known-targets.parquet"))
+  radar.raman::write(files_small_set, file.path(files_dir, "known-targets.parquet"))
 }
 ```
 
@@ -610,7 +610,7 @@ stopifnot(max(abs(files_from_split$peaks - files_components$peaks)) < 1e-10)
 The package supplies `exec/radar.R`. Locate the installed script from R:
 
 ```{r cli-locate}
-files_cli <- system.file("exec", "radar.R", package = "RADAR")
+files_cli <- system.file("exec", "radar.R", package = "radar.raman")
 stopifnot(nzchar(files_cli))
 files_cli
 ```
@@ -807,7 +807,7 @@ not forward a supplied `--batch-size`; use `evaluate()` in R for that control.
 
 For diagrams and detailed layer shapes, see the companion
 [architecture guide](architectures.html), also available with
-`vignette("architectures", package = "RADAR")`.
+`vignette("architectures", package = "radar.raman")`.
 
 ## The two architectures
 
@@ -877,7 +877,7 @@ ensemble decomposition can have a nonzero `$residual`; that behavior is part
 of the published architecture.
 
 ```{r models-load-native}
-library(RADAR)
+library(radar.raman)
 models_standard <- load_model("standard")
 models_ensemble <- load_pretrained("ensemble")
 models_standard
@@ -887,7 +887,7 @@ COMPONENTS
 
 Raw `predict()` does not normalize its input or restore intensity units. Use
 it when the values already have the desired network scale; use
-`RADAR::decompose(..., model = model)` when preprocessing and unit restoration
+`radar.raman::decompose(..., model = model)` when preprocessing and unit restoration
 are needed. Its defaults are `batch_size = 32` and `verbose = 0`. The native
 prediction method evaluates spectra individually to bound attention memory,
 even when a larger batch size is supplied. A map cube should first be passed
@@ -1429,7 +1429,7 @@ pool all values. R axis indices are one-based, and `axis = -1` selects the
 last axis.
 
 ```{r evaluation-component-comparison, fig.height=8, fig.width=7}
-evaluation_parts <- RADAR::decompose(evaluation_demo$X, model = models_standard,
+evaluation_parts <- radar.raman::decompose(evaluation_demo$X, model = models_standard,
                                      normalize = FALSE)
 evaluation_individual <- per_spectrum_errors(evaluation_demo, evaluation_parts)
 evaluation_individual$peaks
@@ -1466,9 +1466,9 @@ snr(evaluation_signal_region, evaluation_noise_region)
 
 | R function | Inputs and result |
 |---|---|
-| `RADAR::decompose(spectra, model = "ensemble", output = NULL, ...)` | A vector, spectra-by-channel matrix, map array, list of spectra, spectral-data object, synthetic dataset or file becomes `radar_components`; unequal lengths produce a list of decompositions. `output` writes the result. |
-| `RADAR::read(path, format = NULL, ...)` | Read a supported spectral file into a `spectral_data` record. |
-| `RADAR::write(obj, path, format = NULL, wavenumbers = NULL, names = NULL, ...)` | Write a numeric array, spectral record, decomposition or synthetic dataset; return the output path or companion-file paths. |
+| `radar.raman::decompose(spectra, model = "ensemble", output = NULL, ...)` | A vector, spectra-by-channel matrix, map array, list of spectra, spectral-data object, synthetic dataset or file becomes `radar_components`; unequal lengths produce a list of decompositions. `output` writes the result. |
+| `radar.raman::read(path, format = NULL, ...)` | Read a supported spectral file into a `spectral_data` record. |
+| `radar.raman::write(obj, path, format = NULL, wavenumbers = NULL, names = NULL, ...)` | Write a numeric array, spectral record, decomposition or synthetic dataset; return the output path or companion-file paths. |
 | `formats(show = FALSE)` | Return a data frame describing adapters, extensions, read/write support and optional dependencies; `show = TRUE` prints it. |
 | `load_model(model = "ensemble", architecture = NULL, compile = TRUE)` | Load a bundled architecture, native RDS model; return a native `radar_model`. Existing `radar_model` objects are accepted. |
 | `train(data = NULL, model = "ensemble", init = NULL, save_to = NULL, ...)` | Train from fresh weights or fine-tune a model; return the updated `radar_model`, including history and training provenance. Retain this returned value. |
@@ -1567,10 +1567,10 @@ No measured throughput or full training duration is promised.
 # Example data and regression checks
 
 ```{r bundled-data}
-example_path <- system.file("extdata", "synthetic_spectra.csv", package="RADAR")
-example_spectra <- RADAR::read(example_path)
+example_path <- system.file("extdata", "synthetic_spectra.csv", package="radar.raman")
+example_spectra <- radar.raman::read(example_path)
 example_truth <- load_dataset(system.file("extdata", "synthetic_spectra_truth.rds",
-                                         package="RADAR"))
+                                         package="radar.raman"))
 dim(example_truth$X)
 ```
 
@@ -1579,7 +1579,7 @@ inverse centimetres. CSV intensities equal `4000 * example_truth$X + 600`.
 Compare predictions with targets on the same intensity scale:
 
 ```{r bundled-evaluation}
-example_prediction <- RADAR::decompose(example_truth$X, model="standard",
+example_prediction <- radar.raman::decompose(example_truth$X, model="standard",
                                        normalize=FALSE)
 evaluate_components(example_truth, example_prediction)$peaks
 ```
@@ -1622,7 +1622,7 @@ conditions in `LICENSE`.
 The scientific method is described by Sjöberg, Siminea, Păun, Lita, Larion and
 Petre (2025), *RADAR: Raman Spectral Analysis Using Deep Learning for Artifact
 Removal*, Advanced Optical Materials, 2500736, DOI: 10.1002/adom.202500736.
-Use `citation("RADAR")` for the formatted reference.
+Use `citation("radar.raman")` for the formatted reference.
 
 # Release 0.1.0
 

@@ -1,4 +1,4 @@
-# RADAR 0.1.0
+# radar.raman 0.1.0
 
 * Integrates the full test suite with testthat and RStudio Test Package.
 

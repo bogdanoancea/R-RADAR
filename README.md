@@ -1,6 +1,8 @@
-# RADAR for R
+# radar.raman
 
-**R**aman spectral **A**nalysis using **D**eep learning for **A**rtifact **R**emoval.
+An R implementation of **RADAR** - **R**aman spectral **A**nalysis using
+**D**eep learning for **A**rtifact **R**emoval - and a port of the Python
+`radar-raman` package.
 
 RADAR decomposes Raman spectra into baseline, cosmic rays, noise and Raman
 peaks. Both network architectures and pretrained weight sets are included.
@@ -24,13 +26,13 @@ remotes::install_github("bogdanoancea/R-RADAR", build_vignettes = TRUE)
 From a local clone, in the terminal:
 
 ```sh
-R CMD INSTALL RADAR
+R CMD INSTALL .
 ```
 
 Or install a source archive from R:
 
 ```r
-install.packages("RADAR_0.1.0.tar.gz", repos = NULL, type = "source")
+install.packages("radar.raman_0.1.0.tar.gz", repos = NULL, type = "source")
 ```
 
 R 4.1.0 or later is required. No compiler is needed.
@@ -41,8 +43,8 @@ The comprehensive vignette covers the R package, including file formats, models,
 the API reference, command-line tools, troubleshooting, history and credits.
 
 ```r
-vignette("RADAR", package = "RADAR")
-browseVignettes("RADAR")
+vignette("RADAR", package = "radar.raman")
+browseVignettes("radar.raman")
 ```
 
 Its source is [vignettes/RADAR.Rmd](vignettes/RADAR.Rmd). Building the
@@ -56,17 +58,17 @@ standard and ensemble networks, with diagrams, layer shapes, output heads,
 residual connections, parameter counts and training behavior.
 
 ```r
-vignette("architectures", package = "RADAR")
+vignette("architectures", package = "radar.raman")
 ```
 
 ## Decompose spectra
 
 ```r
-library(RADAR)
+library(radar.raman)
 
 # A vector is one spectrum; each row of a matrix is a spectrum.
 test <- generate(4, length = 256, seed = 7)
-parts <- RADAR::decompose(test$X, model = "standard")
+parts <- radar.raman::decompose(test$X, model = "standard")
 parts$baseline
 parts$cosmic_rays
 parts$noise
@@ -81,8 +83,8 @@ parts$reconstruction
 parts$residual
 
 # Files can be passed directly; their axes and map metadata are retained.
-# parts <- RADAR::decompose("measurement.spc", output = "components.rds")
-RADAR::write(parts, "components.rds")
+# parts <- radar.raman::decompose("measurement.spc", output = "components.rds")
+radar.raman::write(parts, "components.rds")
 back <- load_components("components.rds")
 ```
 
@@ -100,13 +102,13 @@ as a list; the result is then a list of decompositions.
 
 ```r
 formats(show = TRUE)
-path <- system.file("extdata", "synthetic_spectra.csv", package = "RADAR")
-data <- RADAR::read(path)
-RADAR::write(data, "converted.jdx")
+path <- system.file("extdata", "synthetic_spectra.csv", package = "radar.raman")
+data <- radar.raman::read(path)
+radar.raman::write(data, "converted.jdx")
 
 axis <- seq(400, 1800, length.out = 64)
 cube <- array(runif(2 * 3 * 64), dim = c(2, 3, 64))
-map <- RADAR::decompose(cube, model = "standard", wavenumbers = axis)
+map <- radar.raman::decompose(cube, model = "standard", wavenumbers = axis)
 dim(as_map(map, "peaks"))       # 2 3 64
 band_image(map, 900, 1100)      # integrated Raman band, 2 x 3
 ```
@@ -156,12 +158,12 @@ reproducible seeds and optional legacy scaling.
 The installed package includes an Rscript entry point:
 
 ```sh
-Rscript /path/to/installed/RADAR/exec/radar.R --help
-Rscript /path/to/installed/RADAR/exec/radar.R generate -n 4 --length 128 -o test.rds
-Rscript /path/to/installed/RADAR/exec/radar.R decompose measurement.spc -m standard -o result.rds
+Rscript /path/to/installed/radar.raman/exec/radar.R --help
+Rscript /path/to/installed/radar.raman/exec/radar.R generate -n 4 --length 128 -o test.rds
+Rscript /path/to/installed/radar.raman/exec/radar.R decompose measurement.spc -m standard -o result.rds
 ```
 
-Find the entry point with `system.file("exec", "radar.R", package = "RADAR")`,
+Find the entry point with `system.file("exec", "radar.R", package = "radar.raman")`,
 or call `radar_cli(c("formats"))` from R.
 
 ## Validation and attribution
@@ -175,4 +177,4 @@ devtools::test()
 ```
 
 The suite uses `testthat` and also runs during `R CMD check`.
-See AUTHORS.md and LICENSE for credits and `citation("RADAR")` for the method.
+See AUTHORS.md and LICENSE for credits and `citation("radar.raman")` for the method.

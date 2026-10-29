@@ -1,4 +1,4 @@
-library(RADAR)
+library(radar.raman)
 
 sets <- train_test_datasets(4, 2, length = 64, seed = 3)
 model <- new_model("standard", scaler = 2, dim_red_size = 16, seed = 3)

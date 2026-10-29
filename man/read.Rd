@@ -24,7 +24,7 @@ A spectral_data record.
 Read spectra from a file
 }
 \examples{
-path <- system.file("extdata", "synthetic_spectra.csv", package = "RADAR")
+path <- system.file("extdata", "synthetic_spectra.csv", package = "radar.raman")
 data <- read(path)
 data
 dim(data$intensities)

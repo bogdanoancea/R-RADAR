@@ -1,4 +1,4 @@
 library(testthat)
-library(RADAR)
+library(radar.raman)
 
-test_check("RADAR")
+test_check("radar.raman")

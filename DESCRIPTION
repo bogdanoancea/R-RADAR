@@ -1,4 +1,4 @@
-Package: RADAR
+Package: radar.raman
 Type: Package
 Title: Raman Spectral Analysis Using Deep Learning for Artifact Removal
 Version: 0.1.0
