@@ -15,7 +15,7 @@ synthetic spectra and evaluation are implemented in R.
 
 Authors:
 \itemize{
-  \item Joel Sjoberg \email{joelsjoberg3@gmail.com} (Original algorithms, neural networks and pretrained weights)
+  \item Joel Sjöberg \email{joelsjoberg3@gmail.com} (Original algorithms, neural networks and pretrained weights)
 }
 
 }

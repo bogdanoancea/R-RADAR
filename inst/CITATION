@@ -1,12 +1,12 @@
 bibentry(
   bibtype = "Article",
   title = "RADAR: Raman Spectral Analysis Using Deep Learning for Artifact Removal",
-  author = c(person("Joel", "Sjoberg"), person("Nicoleta", "Siminea"),
-             person("Andrei", "Paun"), person("Adrian", "Lita"),
+  author = c(person("Joel", "Sjöberg"), person("Nicoleta", "Siminea"),
+             person("Andrei", "Păun"), person("Adrian", "Lita"),
              person("Mioara", "Larion"), person("Ion", "Petre")),
   journal = "Advanced Optical Materials", year = "2025", pages = "2500736",
   doi = "10.1002/adom.202500736",
-  textVersion = paste("Sjoberg J, Siminea N, Paun A, Lita A, Larion M, Petre I (2025).",
+  textVersion = paste("Sjöberg J, Siminea N, Păun A, Lita A, Larion M, Petre I (2025).",
     "RADAR: Raman Spectral Analysis Using Deep Learning for Artifact Removal.",
     "Advanced Optical Materials, 2500736. doi:10.1002/adom.202500736.")
 )

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2025 Joel Sjöberg; Copyright (c) 2026 Bogdan Oancea
+# Copyright (c) 2025 Joel Sjoberg; Copyright (c) 2026 Bogdan Oancea
 .io_raw <- function(path) readBin(path,"raw",n=file.info(path)$size)
 .io_bin <- function(buf,off,n=1L,size=4L,what="integer",signed=TRUE,endian="little") {
   bytes<-n*size

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2025 Joel Sjöberg; Copyright (c) 2026 Bogdan Oancea
+# Copyright (c) 2025 Joel Sjoberg; Copyright (c) 2026 Bogdan Oancea
 # MATLAB level 5 files are parsed directly, including zlib compressed elements.
 .io_mat_tag <- function(buf,pos,endian="little") {
   pair<-.io_bin(buf,pos,2L,2L,signed=FALSE,endian=endian)

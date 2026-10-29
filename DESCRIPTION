@@ -3,7 +3,7 @@ Type: Package
 Title: Raman Spectral Analysis Using Deep Learning for Artifact Removal
 Version: 0.1.0
 Authors@R: c(
-    person("Joel", "Sjoberg", email = "joelsjoberg3@gmail.com", role = "aut",
+    person("Joel", "Sjöberg", email = "joelsjoberg3@gmail.com", role = "aut",
            comment = "Original algorithms, neural networks and pretrained weights"),
     person("Bogdan", "Oancea", email = "bogdan.oancea@gmail.com",
            role = c("aut", "cre")))

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2025 Joel Sjöberg; Copyright (c) 2026 Bogdan Oancea
+# Copyright (c) 2025 Joel Sjoberg; Copyright (c) 2026 Bogdan Oancea
 .io_meta <- function(rec) list(radar_format=2L,x_units=rec$x_units,y_units=rec$y_units,
   position_names=I(.io_or(rec$position_names,character())),map_shape=if(is.null(rec$map_shape))NULL else I(rec$map_shape),arrays=I(names(rec$arrays)),map_order=.io_or(rec$meta$map_order,"F"),meta=rec$meta,names=if(is.null(rec$names))NULL else I(rec$names))
 .io_meta_json <- function(rec) { .io_need("jsonlite"); as.character(jsonlite::toJSON(.io_meta(rec),auto_unbox=TRUE,null="null",digits=NA)) }
