@@ -29,7 +29,7 @@ test_that("core checks pass", {
   expect_error(generate(2,length=1)); expect_error(generate(0)); expect_error(generate_peaks(min_peak_width=3,max_peak_width=3))
   
   # The native Voigt calculation matches independently computed SciPy values.
-  v <- getFromNamespace(".gen_voigt","RADAR")(c(-.5,-.1,0,.1,.5),.03,.01)
+  v <- getFromNamespace(".gen_voigt","radar.raman")(c(-.5,-.1,0,.1,.5),.03,.01)
   expect_true(all(max(abs(v-c(0,0.046838011255973346,0.9999999999990361,0.046838011255973346,0)))<1e-7))
   
   # Successive batches advance their own stream and leave the caller's RNG intact.

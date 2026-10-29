@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Joel Sjoberg (original architectures and weights)
-# Copyright (c) 2026 Bogdan Oancea (RADAR R package)
+# Copyright (c) 2026 Bogdan Oancea (radar.raman R package)
 
 .radar_architectures <- c("standard", "ensemble")
 .radar_components <- c("baseline", "cosmic_rays", "noise", "peaks")
@@ -360,8 +360,8 @@ print.radar_model <- function(x, ...) {
 }
 
 .radar_weights_path <- function(architecture) {
-  p <- system.file("weights", paste0(architecture, ".rds"), package = "RADAR")
-  if (!nzchar(p)) stop("Bundled R weights are missing; install the complete RADAR package.", call. = FALSE)
+  p <- system.file("weights", paste0(architecture, ".rds"), package = "radar.raman")
+  if (!nzchar(p)) stop("Bundled R weights are missing; install the complete radar.raman package.", call. = FALSE)
   p
 }
 
@@ -422,7 +422,7 @@ save_model <- function(model, path, overwrite = TRUE) {
     stop("Native R models use RDS serialization; choose a .rds path.", call. = FALSE)
   if (file.exists(path) && !overwrite) stop("The destination exists and overwrite is FALSE.", call. = FALSE)
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  model$saved_with <- list(RADAR = "0.1.0", R = as.character(getRversion()), platform = R.version$platform)
+  model$saved_with <- list(radar.raman = "0.1.0", R = as.character(getRversion()), platform = R.version$platform)
   model$date_saved <- format(Sys.time(), tz = "UTC", usetz = TRUE)
   saveRDS(model, path, compress = "xz"); invisible(path)
 }

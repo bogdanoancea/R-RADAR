@@ -2,7 +2,7 @@ test_that("standalone checks pass", {
   # Both complete pretrained models must load from installed package files alone.
   for (architecture in c("standard", "ensemble")) {
     bundled <- system.file("weights", paste0(architecture, ".rds"),
-                           package = "RADAR", mustWork = TRUE)
+                           package = "radar.raman", mustWork = TRUE)
     stored <- readRDS(bundled)
     model <- load_model(architecture, compile = FALSE)
     expect_true(all(identical(stored$weights, model$weights),

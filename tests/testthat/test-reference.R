@@ -43,7 +43,7 @@ DEGENERATE_REFERENCES <- c("standard_X1738_cosmic_rays",
 test_that("predictions reproduce the original implementation", {
 
   reference <- readRDS(system.file("extdata", "reference_outputs.rds",
-                                   package = "RADAR", mustWork = TRUE))
+                                   package = "radar.raman", mustWork = TRUE))
 
   for (arch in c("standard", "ensemble")) {
     net <- load_model(arch)

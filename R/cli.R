@@ -138,7 +138,7 @@ radar_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
     info = {
       if (length(pos)) model_info(pos[1L], show = TRUE)
       else {
-        cat("RADAR", as.character(utils::packageVersion("RADAR")),
+        cat("RADAR", as.character(utils::packageVersion("radar.raman")),
             "\n", R.version.string, "\nNative R inference and training\n")
         invisible(lapply(c("standard", "ensemble"), model_info, show = TRUE))
       }

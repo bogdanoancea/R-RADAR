@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Joel Sjoberg (original losses and training schedule)
-# Copyright (c) 2026 Bogdan Oancea (RADAR R package)
+# Copyright (c) 2026 Bogdan Oancea (radar.raman R package)
 
 #' Original RADAR learning-rate levels
 #' @export

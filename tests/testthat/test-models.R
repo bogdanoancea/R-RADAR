@@ -12,7 +12,7 @@ test_that("models checks pass", {
   }
   # Finite differences independently verify gradients through all parameter groups,
   # including 2D kernels, max-pooled keys and the two-stage residual connection.
-  loss_and_grad <- getFromNamespace(".radar_loss_and_grad", "RADAR")
+  loss_and_grad <- getFromNamespace(".radar_loss_and_grad", "radar.raman")
   components <- c("baseline", "cosmic_rays", "noise", "peaks")
   for (architecture in c("standard", "ensemble")) {
     model <- build_model(architecture, scaler = 2L, dim_red_size = 16L, seed = 16L)
@@ -39,8 +39,8 @@ test_that("models checks pass", {
     reloaded <- load_model(tmp); unlink(tmp)
     expect_true(all(identical(predict(trained, x), predict(reloaded, x))))
   }
-  new_node <- getFromNamespace(".radar_node", "RADAR")
-  max_pool <- getFromNamespace(".radar_maxpool", "RADAR")
+  new_node <- getFromNamespace(".radar_node", "radar.raman")
+  max_pool <- getFromNamespace(".radar_maxpool", "radar.raman")
   ctx <- new.env(parent = emptyenv()); ctx$gradient <- TRUE; ctx$nodes <- list()
   node <- new_node(ctx, array(c(2, 2, 1, 3, 0, 3), c(1L, 3L, 2L)))
   pooled <- max_pool(ctx, node); pooled$backward(matrix(c(4, 6), 1L, 2L))

@@ -189,7 +189,7 @@ formats <- function(show = FALSE) {
 #' @return A spectral_data record.
 #' @export
 #' @examples
-#' path <- system.file("extdata", "synthetic_spectra.csv", package = "RADAR")
+#' path <- system.file("extdata", "synthetic_spectra.csv", package = "radar.raman")
 #' data <- read(path)
 #' data
 #' dim(data$intensities)
@@ -223,7 +223,7 @@ read <- function(path, format=NULL, ...) {
 #' @return The path, or paths when a one-array format splits the components.
 #' @export
 #' @examples
-#' path <- system.file("extdata", "synthetic_spectra.csv", package = "RADAR")
+#' path <- system.file("extdata", "synthetic_spectra.csv", package = "radar.raman")
 #' data <- read(path)
 #'
 #' # Round trip through a core format; no optional packages required.
