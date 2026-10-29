@@ -21,3 +21,13 @@ A nested named list of errors or summary statistics.
 \description{
 Per-spectrum errors for each component
 }
+\examples{
+dataset <- generate(2, length = 128, seed = 7)
+parts <- decompose(dataset$X, model = "standard")
+
+# One error per spectrum, for each component.
+per_spectrum_errors(dataset, parts)
+
+# evaluate_components() is the same function under its other name.
+evaluate_components(dataset, parts)
+}

@@ -277,6 +277,18 @@ print.synthetic_dataset <- function(x,...) {
 #' @details Seeded generation is reproducible within R.
 #' All arrays use R double precision. Voigt bands use a native complex rational approximation.
 #' @export
+#' @examples
+#' # generate() is an alias of generate_dataset().
+#' dataset <- generate_dataset(4, length = 128, seed = 7)
+#' dataset
+#' dim(dataset$X)
+#'
+#' # The known components travel with the dataset, for evaluation.
+#' str(dataset$peaks)
+#'
+#' # Seeds are reproducible, and the caller's RNG state is restored.
+#' identical(generate(2, length = 64, seed = 1)$X,
+#'           generate(2, length = 64, seed = 1)$X)
 generate_dataset <- function(n,length=1024L,min_width=10L,max_width=300L,max_num_peaks=10L,
                              increase_noise=TRUE,seed=NULL,legacy_scaling=FALSE) {
   length <- .gen_length(length)
@@ -305,6 +317,11 @@ generate <- generate_dataset
 #' @param train_kwargs,test_kwargs Lists of generation parameters overriding the defaults.
 #' @return Named list with train and test datasets.
 #' @export
+#' @examples
+#' sets <- train_test_datasets(4, 2, length = 64, seed = 3)
+#' sets[[1]]
+#' dim(sets[[1]]$X)
+#' dim(sets[[2]]$X)
 train_test_datasets <- function(n_train,n_test,length=1024L,seed=0L,train_kwargs=NULL,test_kwargs=NULL) {
   seeds <- .radar_with_rng(seed,sample.int(.Machine$integer.max,2L))
   tr <- utils::modifyList(list(min_width=5L,max_width=256L,max_num_peaks=5L,increase_noise=FALSE),if(is.null(train_kwargs)) list() else train_kwargs)
@@ -318,6 +335,11 @@ train_test_datasets <- function(n_train,n_test,length=1024L,seed=0L,train_kwargs
 #' @param x A synthetic_dataset object.
 #' @return List with X of dimensions n x length x 1 and targets in model-output order.
 #' @export
+#' @examples
+#' dataset <- generate(2, length = 64, seed = 7)
+#' training <- as_training_data(dataset)
+#' names(training)
+#' dim(training$X)
 as_training_data <- function(x) {
   if(!inherits(x,"synthetic_dataset")) stop("x must be a synthetic_dataset",call.=FALSE)
   list(X=array(x$X,dim=c(nrow(x$X),ncol(x$X),1L)),targets=x$targets)

@@ -17,3 +17,11 @@ Run with the installed exec/radar.R script, or call this function directly.
 Commands are decompose, convert, generate, train, evaluate, formats and info.
 Use --help to display usage.
 }
+\examples{
+# The same interface as the exec/radar.R Rscript entry point.
+radar_cli(c("formats"))
+
+out <- file.path(tempdir(), "generated.rds")
+radar_cli(c("generate", "-n", "2", "--length", "64", "-o", out))
+unlink(out)
+}

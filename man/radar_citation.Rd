@@ -12,3 +12,6 @@ The article citation as a character string.
 \description{
 Reference for the RADAR method
 }
+\examples{
+radar_citation()
+}

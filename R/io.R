@@ -40,6 +40,16 @@
 #' @param source Source file name.
 #' @return A spectral_data S3 object; each matrix has one spectrum per row.
 #' @export
+#' @examples
+#' set.seed(1)
+#'
+#' # Two spectra sharing one axis.
+#' obj <- spectral_data(matrix(runif(2 * 16), nrow = 2),
+#'                      wavenumbers = seq(400, 1800, length.out = 16),
+#'                      names = c("a", "b"),
+#'                      x_units = "cm-1", y_units = "counts")
+#' obj
+#' dim(obj$intensities)
 spectral_data <- function(intensities, wavenumbers = NULL, names = NULL,
                           positions = NULL, position_names = character(),
                           map_shape = NULL, x_units = "", y_units = "", meta = list(),
@@ -146,6 +156,13 @@ print.spectral_data <- function(x, ...) {
 #' @param show Print the format table.
 #' @return A data frame with extensions, capabilities and optional R packages.
 #' @export
+#' @examples
+#' # Every adapter, with the optional package each one needs.
+#' caps <- formats()
+#' head(caps)
+#'
+#' # Printed summary instead of a returned value.
+#' formats(show = TRUE)
 formats <- function(show = FALSE) {
   out <- do.call(rbind,lapply(base::names(.io_formats),function(n) {
     f <- .io_formats[[n]]
@@ -171,6 +188,12 @@ formats <- function(show = FALSE) {
 #'   encoding, sheet, key, table and query.
 #' @return A spectral_data record.
 #' @export
+#' @examples
+#' path <- system.file("extdata", "synthetic_spectra.csv", package = "RADAR")
+#' data <- read(path)
+#' data
+#' dim(data$intensities)
+#' head(data$wavenumbers)
 read <- function(path, format=NULL, ...) {
   if(!file.exists(path)) stop("File does not exist: ",path,call.=FALSE)
   fmt <- .io_format(path,format)
@@ -199,6 +222,16 @@ read <- function(path, format=NULL, ...) {
 #' @param ... Format options.
 #' @return The path, or paths when a one-array format splits the components.
 #' @export
+#' @examples
+#' path <- system.file("extdata", "synthetic_spectra.csv", package = "RADAR")
+#' data <- read(path)
+#'
+#' # Round trip through a core format; no optional packages required.
+#' out <- file.path(tempdir(), "spectra.jdx")
+#' write(data, out)
+#' back <- read(out)
+#' dim(back$intensities)
+#' unlink(out)
 write <- function(obj, path, format=NULL, wavenumbers=NULL, names=NULL, ...) {
   fmt <- .io_format(path,format)
   if(fmt %in% c("rruff","wdf","labspec","trivista")) stop(fmt," is a read-only format",call.=FALSE)
@@ -248,6 +281,15 @@ save_components <- function(components,path,...) write(components,path,...)
 #' @param ... Format options.
 #' @return A radar_components object.
 #' @export
+#' @examples
+#' dataset <- generate(2, length = 128, seed = 7)
+#' parts <- decompose(dataset$X, model = "standard")
+#'
+#' path <- file.path(tempdir(), "components.rds")
+#' save_components(parts, path)
+#' restored <- load_components(path)
+#' isTRUE(all.equal(restored$peaks, parts$peaks))
+#' unlink(path)
 load_components <- function(path,format=NULL,...) {
   fmt <- .io_format(path,format)
   if(fmt %in% c("spc","jcamp","npy")) {

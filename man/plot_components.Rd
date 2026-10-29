@@ -23,3 +23,12 @@ Invisibly, the plotted object.
 \description{
 Plot a decomposition
 }
+\examples{
+dataset <- generate(2, length = 128, seed = 7)
+parts <- decompose(dataset$X, model = "standard")
+
+plot_components(parts, index = 1)
+
+# plot() on a radar_components object dispatches to this function.
+plot(parts, index = 2)
+}

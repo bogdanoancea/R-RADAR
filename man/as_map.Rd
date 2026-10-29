@@ -17,3 +17,14 @@ An array with dimensions c(map_shape, spectrum_length).
 \description{
 Reshape spectral components into a spatial map
 }
+\examples{
+set.seed(1)
+
+cube <- array(runif(2 * 3 * 64), dim = c(2, 3, 64))
+map <- decompose(cube, model = "standard",
+                 wavenumbers = seq(400, 1800, length.out = 64))
+
+# Spatial axes first, spectral axis last, one-based indices.
+dim(as_map(map, "peaks"))
+dim(as_map(map, "baseline"))
+}

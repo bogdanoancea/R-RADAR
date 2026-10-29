@@ -28,3 +28,8 @@ Numeric error values, one per spectrum by default.
 \description{
 Errors for spectra and their components
 }
+\examples{
+truth <- matrix(c(1, 2, 3, 4), nrow = 2)
+estimate <- truth + 0.1
+rmse(truth, estimate)
+}

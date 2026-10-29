@@ -73,3 +73,13 @@ This CPU implementation favors portability over the speed of a GPU runtime;
 a small batch size is recommended because the attention layer materializes
 convolution patches. The default batch size is one to bound memory use.
 }
+\examples{
+# A deliberately tiny run. Every network layer is differentiated in R, so
+# realistic training takes substantial CPU time.
+sets <- train_test_datasets(4, 2, length = 64, seed = 3)
+model <- new_model("standard", scaler = 2, dim_red_size = 16, seed = 3)
+fitted <- train(sets[[1]], model = model, epochs = 1, batch_size = 2,
+                validation_data = sets[[2]], learning_rate = 1e-5,
+                verbose = 0)
+fitted$history
+}

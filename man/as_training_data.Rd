@@ -15,3 +15,9 @@ List with X of dimensions n x length x 1 and targets in model-output order.
 \description{
 Convert synthetic data to native model training arrays
 }
+\examples{
+dataset <- generate(2, length = 64, seed = 7)
+training <- as_training_data(dataset)
+names(training)
+dim(training$X)
+}

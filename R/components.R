@@ -115,6 +115,16 @@ print.radar_components <- function(x, ...) {
 #' @param component Name of a component or derived field.
 #' @return An array with dimensions c(map_shape, spectrum_length).
 #' @export
+#' @examples
+#' set.seed(1)
+#'
+#' cube <- array(runif(2 * 3 * 64), dim = c(2, 3, 64))
+#' map <- decompose(cube, model = "standard",
+#'                  wavenumbers = seq(400, 1800, length.out = 64))
+#'
+#' # Spatial axes first, spectral axis last, one-based indices.
+#' dim(as_map(map, "peaks"))
+#' dim(as_map(map, "baseline"))
 as_map <- function(x, component = "peaks") {
   if(is.null(x$map_shape)) stop("these spectra do not come from a regular map",call.=FALSE)
   value <- if(inherits(x,"radar_components")) `$.radar_components`(x,component) else x[[component]]
@@ -129,6 +139,14 @@ as_map <- function(x, component = "peaks") {
 #' @param component Component to integrate.
 #' @return Integrated values, or an array of map_shape for a regular map.
 #' @export
+#' @examples
+#' set.seed(1)
+#'
+#' # Integrate a Raman band across a spatial map.
+#' cube <- array(runif(2 * 3 * 64), dim = c(2, 3, 64))
+#' map <- decompose(cube, model = "standard",
+#'                  wavenumbers = seq(400, 1800, length.out = 64))
+#' band_image(map, 900, 1100)
 band_image <- function(x, lo, hi, component = "peaks") {
   if(is.null(x$wavenumbers)) stop("wavenumbers are needed to select a band",call.=FALSE)
   wn <- x$wavenumbers
@@ -150,6 +168,14 @@ band_image <- function(x, lo, hi, component = "peaks") {
 #' @param ... Additional arguments passed to the graphics plot function.
 #' @return Invisibly, the plotted object.
 #' @export
+#' @examples
+#' dataset <- generate(2, length = 128, seed = 7)
+#' parts <- decompose(dataset$X, model = "standard")
+#'
+#' plot_components(parts, index = 1)
+#'
+#' # plot() on a radar_components object dispatches to this function.
+#' plot(parts, index = 2)
 plot_components <- function(components,index=1L,wavenumbers=NULL,title=NULL,...) {
   if(index<1L || index>components$n_spectra) stop("index is outside the spectra",call.=FALSE)
   axis <- if(!is.null(wavenumbers)) wavenumbers else components$wavenumbers
@@ -177,6 +203,12 @@ plot.radar_components <- function(x,...) plot_components(x,...)
 #' @param ... Additional graphics parameters.
 #' @return Invisibly, the predicted components.
 #' @export
+#' @examples
+#' dataset <- generate(2, length = 128, seed = 7)
+#' parts <- decompose(dataset$X, model = "standard")
+#'
+#' # Known components against the predicted ones.
+#' plot_comparison(dataset, parts, index = 1)
 plot_comparison <- function(dataset,components,index=1L,...) {
   if(index<1L || index>nrow(dataset$X) || index>components$n_spectra) stop("index is outside the spectra",call.=FALSE)
   old <- graphics::par(no.readonly=TRUE); on.exit(graphics::par(old))

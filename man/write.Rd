@@ -23,3 +23,14 @@ The path, or paths when a one-array format splits the components.
 \description{
 Write spectra or a decomposition
 }
+\examples{
+path <- system.file("extdata", "synthetic_spectra.csv", package = "RADAR")
+data <- read(path)
+
+# Round trip through a core format; no optional packages required.
+out <- file.path(tempdir(), "spectra.jdx")
+write(data, out)
+back <- read(out)
+dim(back$intensities)
+unlink(out)
+}

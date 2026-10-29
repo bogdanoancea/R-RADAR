@@ -45,3 +45,21 @@ standard or ensemble network. Every numerical operation is implemented in R.
 Rows of a matrix are spectra; the last dimension of a map array is the
 spectral axis. Lists may contain spectra of different lengths.
 }
+\examples{
+set.seed(1)
+
+# Each row of a matrix is one spectrum.
+dataset <- generate(2, length = 128, seed = 7)
+parts <- decompose(dataset$X, model = "standard")
+parts
+str(parts$peaks)
+
+# Derived spectra are computed on access, not stored.
+str(parts$denoised)
+
+# A map array: the last dimension is the spectral axis.
+cube <- array(runif(2 * 3 * 64), dim = c(2, 3, 64))
+map <- decompose(cube, model = "standard",
+                 wavenumbers = seq(400, 1800, length.out = 64))
+dim(as_map(map, "peaks"))
+}

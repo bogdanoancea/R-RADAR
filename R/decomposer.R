@@ -45,6 +45,23 @@
 #' @param ... Options passed to read() when spectra is a file name.
 #' @return A radar_components object, or a list of objects for unequal lengths.
 #' @export
+#' @examples
+#' set.seed(1)
+#'
+#' # Each row of a matrix is one spectrum.
+#' dataset <- generate(2, length = 128, seed = 7)
+#' parts <- decompose(dataset$X, model = "standard")
+#' parts
+#' str(parts$peaks)
+#'
+#' # Derived spectra are computed on access, not stored.
+#' str(parts$denoised)
+#'
+#' # A map array: the last dimension is the spectral axis.
+#' cube <- array(runif(2 * 3 * 64), dim = c(2, 3, 64))
+#' map <- decompose(cube, model = "standard",
+#'                  wavenumbers = seq(400, 1800, length.out = 64))
+#' dim(as_map(map, "peaks"))
 decompose <- function(spectra, model = "ensemble", output = NULL,
                       wavenumbers = NULL, normalize = TRUE,
                       units = c("original", "normalized"), batch_size = 32L,
@@ -139,6 +156,15 @@ decompose <- function(spectra, model = "ensemble", output = NULL,
 #' @param batch_size Prediction batch size.
 #' @return Named lists of error metrics for each component.
 #' @export
+#' @examples
+#' dataset <- generate(2, length = 128, seed = 7)
+#'
+#' # A bundled model may be named rather than loaded first.
+#' scores <- evaluate("standard", dataset)
+#' scores$peaks
+#'
+#' # Per-component error statistics instead of one score each.
+#' evaluate("standard", dataset, statistics = TRUE)
 evaluate <- function(model, dataset, statistics = FALSE, normalize = FALSE,
                      batch_size = 32L) {
   if (is.character(dataset) && length(dataset) == 1L) dataset <- load_dataset(dataset)
@@ -153,6 +179,8 @@ evaluate <- function(model, dataset, statistics = FALSE, normalize = FALSE,
 #' Reference for the RADAR method
 #' @return The article citation as a character string.
 #' @export
+#' @examples
+#' radar_citation()
 radar_citation <- function() {
   paste("J. Sjoberg, N. Siminea, A. Paun, A. Lita, M. Larion, I. Petre,",
         "RADAR: Raman Spectral Analysis Using Deep Learning for Artifact Removal,",

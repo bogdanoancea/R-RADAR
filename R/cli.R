@@ -9,6 +9,13 @@
 #' @param args Character vector of command-line arguments.
 #' @return Invisibly, the command result.
 #' @export
+#' @examples
+#' # The same interface as the exec/radar.R Rscript entry point.
+#' radar_cli(c("formats"))
+#'
+#' out <- file.path(tempdir(), "generated.rds")
+#' radar_cli(c("generate", "-n", "2", "--length", "64", "-o", out))
+#' unlink(out)
 radar_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
   help <- paste(
     "RADAR: pure R Raman spectral decomposition",

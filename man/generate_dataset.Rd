@@ -52,3 +52,16 @@ Generate synthetic Raman spectra
 Seeded generation is reproducible within R.
 All arrays use R double precision. Voigt bands use a native complex rational approximation.
 }
+\examples{
+# generate() is an alias of generate_dataset().
+dataset <- generate_dataset(4, length = 128, seed = 7)
+dataset
+dim(dataset$X)
+
+# The known components travel with the dataset, for evaluation.
+str(dataset$peaks)
+
+# Seeds are reproducible, and the caller's RNG state is restored.
+identical(generate(2, length = 64, seed = 1)$X,
+          generate(2, length = 64, seed = 1)$X)
+}

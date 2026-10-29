@@ -15,3 +15,11 @@ A list with normalized spectra and affine scaling parameters.
 \description{
 Per-spectrum min-max normalization
 }
+\examples{
+spectra <- matrix(c(1, 2, 3, 10, 20, 30), nrow = 2, byrow = TRUE)
+scaled <- minmax_normalize(spectra)
+scaled$normalized
+
+# The per-spectrum offset and scale needed to restore original units.
+str(scaled$scaling)
+}

@@ -19,3 +19,13 @@ A radar_components object.
 \description{
 Read saved components
 }
+\examples{
+dataset <- generate(2, length = 128, seed = 7)
+parts <- decompose(dataset$X, model = "standard")
+
+path <- file.path(tempdir(), "components.rds")
+save_components(parts, path)
+restored <- load_components(path)
+isTRUE(all.equal(restored$peaks, parts$peaks))
+unlink(path)
+}

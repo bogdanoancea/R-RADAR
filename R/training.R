@@ -143,6 +143,15 @@ joined_loss <- function(y_true, y_pred) root_mean_squared_error(y_true, y_pred) 
 #' @param verbose Print epoch losses when positive.
 #' @return The trained `radar_model`; its `history` contains epoch losses.
 #' @export
+#' @examples
+#' # A deliberately tiny run. Every network layer is differentiated in R, so
+#' # realistic training takes substantial CPU time.
+#' sets <- train_test_datasets(4, 2, length = 64, seed = 3)
+#' model <- new_model("standard", scaler = 2, dim_red_size = 16, seed = 3)
+#' fitted <- train(sets[[1]], model = model, epochs = 1, batch_size = 2,
+#'                 validation_data = sets[[2]], learning_rate = 1e-5,
+#'                 verbose = 0)
+#' fitted$history
 train <- function(data = NULL, model = "ensemble", init = NULL, save_to = NULL,
                   epochs = 10L, steps_per_epoch = 1000L, batch_size = 1L,
                   learning_rate = "original", length = 750L, min_width = 5L,

@@ -19,3 +19,12 @@ Integrated values, or an array of map_shape for a regular map.
 \description{
 Integrate a spectral band
 }
+\examples{
+set.seed(1)
+
+# Integrate a Raman band across a spatial map.
+cube <- array(runif(2 * 3 * 64), dim = c(2, 3, 64))
+map <- decompose(cube, model = "standard",
+                 wavenumbers = seq(400, 1800, length.out = 64))
+band_image(map, 900, 1100)
+}
