@@ -23,7 +23,6 @@ Suggests: jsonlite, hdf5r, DBI, RSQLite, readxl, openxlsx, arrow, xml2,
     knitr, rmarkdown, testthat (>= 3.0.0)
 VignetteBuilder: knitr
 NeedsCompilation: no
-LazyData: false
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Config/testthat/edition: 3
