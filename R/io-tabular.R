@@ -184,7 +184,7 @@
   rec<-records[[1L]]
   if(length(records)>1L)rec$arrays<-setNames(lapply(records,`[[`,"intensities"),sheets)
   if("radar_metadata"%in%readxl::excel_sheets(path)) {
-    m<-readxl::read_excel(path,sheet="radar_metadata",col_names=FALSE)
+    m<-readxl::read_excel(path,sheet="radar_metadata",col_names=FALSE,.name_repair="minimal")
     if(nrow(m))rec<-.io_apply_meta(rec,as.character(m[[1L]][nrow(m)]))
   }
   .io_record(rec)
