@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2025 Joel Sjöberg (original architectures and weights)
+# Copyright (c) 2025 Joel Sjoberg (original architectures and weights)
 # Copyright (c) 2026 Bogdan Oancea (RADAR R package)
 
 .radar_architectures <- c("standard", "ensemble")

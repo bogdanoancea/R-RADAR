@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2025 Joel Sjöberg; Copyright (c) 2026 Bogdan Oancea
+# Copyright (c) 2025 Joel Sjoberg; Copyright (c) 2026 Bogdan Oancea
 .io_key <- function(x) tolower(gsub("[[:space:]]+","",x))
 .io_monotonic <- function(x) length(x)>=3L && all(is.finite(x)) && (all(diff(x)>0)||all(diff(x)<0))
 .io_wn_alias <- c("wavenumber","wavenumbers","ramanshift","raman_shift","shift","wave","#wave","wl","wavelength","x-axis","xaxis","frequency","cm-1","cm^-1","1/cm","energy","pixel","channel","index")

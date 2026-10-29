@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2025 Joel Sjöberg; Copyright (c) 2026 Bogdan Oancea
+# Copyright (c) 2025 Joel Sjoberg; Copyright (c) 2026 Bogdan Oancea
 # Native R spectral records and file dispatch.
 
 .io_components <- c("baseline", "cosmic_rays", "noise", "peaks")
