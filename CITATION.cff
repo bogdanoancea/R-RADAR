@@ -31,11 +31,11 @@ authors:
     orcid: "https://orcid.org/0000-0002-8572-0431"
   - family-names: Petre
     given-names: Ion
-    affifliation: "University of Turku, Finland; National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
+    affiliation: "University of Turku, Finland; National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
     orcid: "https://orcid.org/0000-0002-5014-5529"
- - family-names: Nicoleta
-    given-names: Siminea
-    affifliation: "National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
+  - family-names: Siminea
+    given-names: Nicoleta
+    affiliation: "National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
   
 preferred-citation:
   type: article
@@ -71,11 +71,11 @@ references:
           orcid: "https://orcid.org/0000-0002-8572-0431"
         - family-names: Petre
           given-names: Ion
-          affifliation: "University of Turku, Finland; National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
+          affiliation: "University of Turku, Finland; National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
           orcid: "https://orcid.org/0000-0002-5014-5529"
-        - family-names: Nicoleta
-          given-names: Siminea
-          affifliation: "National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
+        - family-names: Siminea
+          given-names: Nicoleta
+          affiliation: "National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
     version: 0.1.0
     doi: "10.5281/zenodo.23760379"
     repository-code: "https://github.com/bogdanoancea/RADAR"
