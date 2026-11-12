@@ -3,10 +3,12 @@ Type: Package
 Title: Raman Spectral Analysis Using Deep Learning for Artifact Removal
 Version: 0.1.0
 Authors@R: c(
-    person("Joel", "Sjöberg", email = "joelsjoberg3@gmail.com", role = "aut",
-           comment = "Original algorithms, neural networks and pretrained weights"),
     person("Bogdan", "Oancea", email = "bogdan.oancea@gmail.com",
-           role = c("aut", "cre")))
+           role = c("aut", "cre")),
+   person("Joel", "Sjöberg", email = "joelsjoberg3@gmail.com", role = "aut",
+           comment = "Original algorithms, neural networks and pretrained weights"),
+           ("Ion", "Petre", email = "ion.petre@gmail.com", role = "aut"),
+           ("Nicoleta", "Siminea", email = "nicoleta.siminea@incdsb.ro", role = "aut"))
 Description: Decomposes Raman spectra into baseline, cosmic rays, noise and
     Raman peaks using the bundled pretrained standard and ensemble convolutional
     networks. Implements neural network inference, automatic differentiation,

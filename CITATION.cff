@@ -22,13 +22,21 @@ keywords:
   - convolutional neural network
   - R
 authors:
-  - family-names: Sjöberg
-    given-names: Joel
-    orcid: "https://orcid.org/0000-0002-8572-0431"
   - family-names: Oancea
     given-names: Bogdan
     affiliation: "University of Bucharest, Bucharest, Romania; National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
     orcid: "https://orcid.org/0000-0001-6987-5137"
+  - family-names: Sjöberg
+    given-names: Joel
+    orcid: "https://orcid.org/0000-0002-8572-0431"
+  - family-names: Petre
+    given-names: Ion
+    affifliation: "University of Turku, Finland; National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
+    orcid: "https://orcid.org/0000-0002-5014-5529"
+ - family-names: Nicoleta
+    given-names: Siminea
+    affifliation: "National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
+  
 preferred-citation:
   type: article
   title: "RADAR: Raman Spectral Analysis Using Deep Learning for Artifact Removal"
@@ -54,12 +62,20 @@ references:
   - type: software
     title: "RADAR: Raman spectral Analysis using Deep learning for Artifact Removal (Python package)"
     authors:
-      - family-names: Sjöberg
-        given-names: Joel
-        orcid: "https://orcid.org/0000-0002-8572-0431"
-      - family-names: Oancea
-        given-names: Bogdan
-        orcid: "https://orcid.org/0000-0001-6987-5137"
+        - family-names: Oancea
+          given-names: Bogdan
+          affiliation: "University of Bucharest, Bucharest, Romania; National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
+          orcid: "https://orcid.org/0000-0001-6987-5137"
+        - family-names: Sjöberg
+          given-names: Joel
+          orcid: "https://orcid.org/0000-0002-8572-0431"
+        - family-names: Petre
+          given-names: Ion
+          affifliation: "University of Turku, Finland; National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
+          orcid: "https://orcid.org/0000-0002-5014-5529"
+        - family-names: Nicoleta
+          given-names: Siminea
+          affifliation: "National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
     version: 0.1.0
     doi: "10.5281/zenodo.23760379"
     repository-code: "https://github.com/bogdanoancea/RADAR"
