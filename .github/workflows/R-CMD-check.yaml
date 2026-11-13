@@ -19,7 +19,11 @@ jobs:
       fail-fast: false
       matrix:
         config:
+          # CRAN checks against R-devel, so it must be in the matrix.
+          - {os: ubuntu-latest,  r: 'devel', http-user-agent: 'release'}
           - {os: ubuntu-latest,  r: 'release'}
+          # Some evidence behind the R (>= 4.1.0) floor in DESCRIPTION.
+          - {os: ubuntu-latest,  r: 'oldrel-1'}
           - {os: macos-latest,   r: 'release'}
           - {os: windows-latest, r: 'release'}
     env:
