@@ -1,6 +1,8 @@
 ## Test environments
 
 * local: macOS 26.6.2 (aarch64-apple-darwin23), R 4.6.1
+* win-builder: Windows Server 2022 x64, R Under development (unstable)
+  (2026-11-12 r90881 ucrt)
 * GitHub Actions: ubuntu-latest, macos-latest, windows-latest, R release
 
 ## R CMD check results
@@ -11,7 +13,18 @@
 
 ## Notes
 
-The only NOTE is "New submission", which is expected for a first submission.
+The NOTE is "New submission", which is expected for a first submission.
+
+On win-builder the same NOTE also lists possibly misspelled words in
+DESCRIPTION:
+
+    Raman (3:8, 12:25, 13:5)
+    convolutional (13:68)
+    pretrained (13:35)
+
+All three are spelled correctly. "Raman" is the surname of C. V. Raman, after
+whom Raman spectroscopy and the Raman effect are named. "Convolutional" and
+"pretrained" are standard terms in the neural network literature.
 
 ## Other comments
 
