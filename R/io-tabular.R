@@ -229,7 +229,7 @@
 }
 .io_read_arrow <- function(path,feather=FALSE,layout="auto",...) {
   .io_need("arrow")
-  tab<-if(feather)arrow::read_feather(path,as_data_frame=FALSE)else arrow::read_parquet(path,as_data_frame=FALSE)
+  tab<-if(feather)arrow::read_ipc_file(path,as_data_frame=FALSE)else arrow::read_parquet(path,as_data_frame=FALSE)
   rec<-.io_table(as.data.frame(tab),tab$ColumnNames,layout)
   js<-tab$schema$metadata$radar
   if(!is.null(js))rec<-.io_apply_meta(rec,js)
@@ -239,5 +239,5 @@
   .io_need("arrow")
   tab<-arrow::Table$create(.io_choose(rec,layout,FALSE))
   tab<-tab$ReplaceSchemaMetadata(c(tab$schema$metadata,list(radar=.io_meta_json(rec))))
-  if(feather)arrow::write_feather(tab,path)else arrow::write_parquet(tab,path)
+  if(feather)arrow::write_ipc_file(tab,path)else arrow::write_parquet(tab,path)
 }

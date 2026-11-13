@@ -145,7 +145,7 @@ print.spectral_data <- function(x, ...) {
   sqlite=list(ext=c("db","sqlite","sqlite3"),pkg="DBI, RSQLite, jsonlite",description="SQLite spectra and metadata"),
   excel=list(ext=c("xlsx","xlsm","xls"),pkg="readxl (read); openxlsx, jsonlite (write)",description="Excel workbook; writing requires openxlsx"),
   parquet=list(ext=c("parquet","pq"),pkg="arrow, jsonlite",description="Apache Parquet"),
-  feather=list(ext=c("feather","arrow"),pkg="arrow, jsonlite",description="Arrow / Feather"),
+  feather=list(ext=c("feather","arrow"),pkg="arrow, jsonlite",description="Arrow IPC file (Feather V2); Feather V1 is read"),
   matlab=list(ext="mat",pkg="jsonlite",description="MATLAB level 5 numeric arrays and v7.3 HDF5"),
   wdf=list(ext="wdf",pkg="",description="Renishaw WiRE binary spectra and axes"),
   labspec=list(ext="xml",pkg="xml2",description="Horiba LabSpec XML"),
