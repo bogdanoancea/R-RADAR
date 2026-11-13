@@ -21,7 +21,7 @@ BugReports: https://github.com/bogdanoancea/R-RADAR/issues
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
 Imports: graphics, stats, utils, tools
-Suggests: jsonlite, hdf5r, DBI, RSQLite, readxl, openxlsx, arrow, xml2,
+Suggests: jsonlite, hdf5r, DBI, RSQLite, readxl, openxlsx, arrow (>= 9.0.0), xml2,
     knitr, rmarkdown, testthat (>= 3.0.0)
 VignetteBuilder: knitr
 NeedsCompilation: no
