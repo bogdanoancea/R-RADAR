@@ -10,8 +10,17 @@ abstract: >-
   implemented entirely in R, with readers and writers for the common
   spectroscopy formats. A port of the Python radar-raman package.
 version: 0.1.0
+doi: "10.5281/zenodo.24185814"
+date-released: 2026-11-13
 license: BSD-3-Clause
 repository-code: "https://github.com/bogdanoancea/R-RADAR"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.24185814"
+    description: "Concept DOI; always resolves to the latest version"
+  - type: doi
+    value: "10.5281/zenodo.24185815"
+    description: "Zenodo archive of version 0.1.0"
 keywords:
   - Raman spectroscopy
   - spectral decomposition

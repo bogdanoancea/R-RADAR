@@ -1,5 +1,7 @@
 # radar.raman
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24185814.svg)](https://doi.org/10.5281/zenodo.24185814)
+
 An R implementation of **RADAR** - **R**aman spectral **A**nalysis using
 **D**eep learning for **A**rtifact **R**emoval - and a port of the Python
 `radar-raman` package.
