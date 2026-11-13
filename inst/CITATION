@@ -10,3 +10,17 @@ bibentry(
     "RADAR: Raman Spectral Analysis Using Deep Learning for Artifact Removal.",
     "Advanced Optical Materials, 2500736. doi:10.1002/adom.202500736.")
 )
+
+bibentry(
+  bibtype = "Manual",
+  title = "radar.raman: Raman Spectral Analysis Using Deep Learning for Artifact Removal",
+  author = c(person("Bogdan", "Oancea"), person("Joel", "Sj\u00f6berg"),
+             person("Ion", "Petre"), person("Nicoleta", "Siminea")),
+  year = "2026",
+  note = "R package version 0.1.0",
+  doi = "10.5281/zenodo.24185814",
+  url = "https://github.com/bogdanoancea/R-RADAR",
+  textVersion = paste("Oancea B, Sj\u00f6berg J, Petre I, Siminea N (2026).",
+    "radar.raman: Raman Spectral Analysis Using Deep Learning for Artifact Removal.",
+    "R package version 0.1.0. doi:10.5281/zenodo.24185814.")
+)

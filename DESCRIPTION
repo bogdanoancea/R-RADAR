@@ -16,7 +16,7 @@ Description: Decomposes Raman spectra into baseline, cosmic rays, noise and
     entirely in R. Includes
     readers and writers for common spectroscopy and scientific data formats.
 License: BSD_3_clause + file LICENSE
-URL: https://github.com/bogdanoancea/R-RADAR
+URL: https://github.com/bogdanoancea/R-RADAR, https://doi.org/10.5281/zenodo.24185814
 BugReports: https://github.com/bogdanoancea/R-RADAR/issues
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
