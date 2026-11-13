@@ -1,0 +1,58 @@
+{
+  "upload_type": "software",
+  "title": "radar.raman: Raman Spectral Analysis Using Deep Learning for Artifact Removal (R package)",
+  "description": "<p>radar.raman is an R package that decomposes Raman spectra into four additive components &mdash; baseline, cosmic rays, noise and Raman peaks &mdash; using convolutional neural networks.</p><ul><li>Two pretrained networks, standard and ensemble, bundled as native R objects; no download or conversion is needed.</li><li>Neural network inference, automatic differentiation, Adam training, synthetic data generation and evaluation metrics, implemented entirely in R with no compiled code.</li><li>Readers and writers for common spectroscopy and scientific formats: CSV/TSV/text, RRUFF, RDS, SPC, JCAMP-DX, NumPy, Renishaw WDF, and, with optional packages, JSON, MATLAB, HDF5/NetCDF-4, SQLite, Excel, Parquet and Arrow IPC, and Horiba LabSpec and Princeton TriVista XML.</li><li>Spectral map operations, an Rscript command-line entry point, a testthat suite and two vignettes.</li></ul><p>A port of the Python radar-raman package. The network architectures, the synthetic data generator and the pretrained weights come from the original implementation by Joel Sj&ouml;berg; the regression fixtures are outputs of that original code, so the test suite checks this port against it rather than against itself.</p>",
+  "creators": [
+    {
+      "name": "Oancea, Bogdan",
+      "affiliation": "University of Bucharest, Bucharest, Romania; National Institute of Research and Development for Biological Sciences, Bucharest, Romania",
+      "orcid": "0000-0001-6987-5137"
+    },
+    {
+      "name": "Sjöberg, Joel",
+      "orcid": "0000-0002-8572-0431"
+    },
+    {
+      "name": "Petre, Ion",
+      "affiliation": "University of Turku, Finland; National Institute of Research and Development for Biological Sciences, Bucharest, Romania",
+      "orcid": "0000-0002-5014-5529"
+    },
+    {
+      "name": "Siminea, Nicoleta",
+      "affiliation": "National Institute of Research and Development for Biological Sciences, Bucharest, Romania"
+    }
+  ],
+  "license": "BSD-3-Clause",
+  "access_right": "open",
+  "language": "eng",
+  "keywords": [
+    "Raman spectroscopy",
+    "spectral decomposition",
+    "deep learning",
+    "convolutional neural network",
+    "baseline correction",
+    "cosmic ray removal",
+    "denoising",
+    "R"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.1002/adom.202500736",
+      "relation": "isSupplementTo",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.5281/zenodo.23760379",
+      "relation": "isDerivedFrom",
+      "resource_type": "software",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "https://github.com/JoelSjoberg/Comprehensive-Raman-Spectral-Analysis-Using-Deep-Learning",
+      "relation": "isDerivedFrom",
+      "resource_type": "software",
+      "scheme": "url"
+    }
+  ]
+}
